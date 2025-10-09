@@ -1,0 +1,544 @@
+/* Admin Reports Styles - Đồng bộ với thiết kế chung */
+.admin-reports {
+  padding: 20px;
+  background-color: #fafafa;
+  min-height: 100vh;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.reports-header {
+  margin-bottom: 30px;
+  padding: 20px;
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(220, 38, 38, 0.2);
+}
+
+.reports-header h2 {
+  color: white;
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reports-container {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 20px;
+  height: calc(100vh - 120px);
+}
+
+/* Control Panel Styles - Đồng bộ với thiết kế chung */
+.control-panel {
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  height: fit-content;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+}
+
+.control-section {
+  margin-bottom: 25px;
+}
+
+.control-section:last-child {
+  margin-bottom: 0;
+}
+
+.control-section label {
+  display: block;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.report-type-select {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+  transition: all 0.3s ease;
+}
+
+.report-type-select:focus {
+  outline: none;
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.date-range-inputs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 10px;
+}
+
+.date-range-inputs input[type="date"] {
+  padding: 8px 12px;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.date-range-inputs input[type="date"]:focus {
+  outline: none;
+  border-color: #dc2626;
+}
+
+.quick-date-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.quick-date-buttons button {
+  padding: 6px 12px;
+  background: #f8f9fa;
+  border: 2px solid #e5e7eb;
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.quick-date-buttons button:hover {
+  background: #dc2626;
+  color: white;
+  border-color: #dc2626;
+}
+
+.btn-generate-report {
+  width: 100%;
+  padding: 15px;
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-generate-report:hover:not(:disabled) {
+  background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(220, 38, 38, 0.3);
+}
+
+.btn-generate-report:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+}
+
+
+
+/* Results Area Styles - Đồng bộ với thiết kế chung */
+.results-area {
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.loading-state, .empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #6c757d;
+  font-size: 16px;
+}
+
+.report-results {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.table-container {
+  flex: 1;
+  overflow: auto;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.report-table thead {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.report-table thead th {
+  padding: 18px 15px;
+  text-align: left;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 12px;
+  border-bottom: 2px solid #dee2e6;
+  white-space: nowrap;
+}
+
+.report-table tbody tr {
+  border-bottom: 1px solid #f3f4f6;
+  transition: all 0.2s ease;
+}
+
+.report-table tbody tr:hover {
+  background-color: #fef2f2;
+  transform: scale(1.001);
+}
+
+.report-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.report-table td {
+  padding: 15px;
+  vertical-align: middle;
+  color: #374151;
+}
+
+.report-summary {
+  margin-top: 20px;
+  padding: 15px;
+  background: #e8f5e8;
+  border-radius: 8px;
+  border-left: 4px solid #28a745;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.report-summary strong {
+  color: #155724;
+}
+
+/* Table Toolbar Styles */
+.table-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.toolbar-actions button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-print-report {
+  background: linear-gradient(135deg, #28a745 0%, #059669 100%);
+  color: white;
+}
+
+.btn-print-report:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-export-excel {
+  background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+  color: white;
+}
+
+.btn-export-excel:hover:not(:disabled) {
+  background: linear-gradient(135deg, #138496 0%, #117a8b 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(23, 162, 184, 0.3);
+}
+
+.report-info {
+  display: flex;
+  gap: 20px;
+  font-size: 13px;
+  color: #6c757d;
+}
+
+.report-info span {
+  display: flex;
+  align-items: center;
+}
+
+.report-info strong {
+  color: #495057;
+  margin-right: 5px;
+}
+
+/* Action Panel Styles */
+.action-panel {
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  height: fit-content;
+}
+
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 25px;
+}
+
+.action-buttons button {
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+}
+
+.btn-print-report {
+  background: #28a745;
+  color: white;
+}
+
+.btn-print-report:hover:not(:disabled) {
+  background: #218838;
+  transform: translateY(-2px);
+}
+
+.btn-export-excel {
+  background: #17a2b8;
+  color: white;
+}
+
+.btn-export-excel:hover:not(:disabled) {
+  background: #138496;
+  transform: translateY(-2px);
+}
+
+.btn-export-pdf {
+  background: #dc3545;
+  color: white;
+}
+
+.btn-export-pdf:hover:not(:disabled) {
+  background: #c82333;
+  transform: translateY(-2px);
+}
+
+.action-buttons button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.report-info {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 15px;
+  border-left: 4px solid #007bff;
+}
+
+.report-info h4 {
+  margin: 0 0 10px 0;
+  color: #495057;
+  font-size: 16px;
+}
+
+.report-info p {
+  margin: 5px 0;
+  font-size: 13px;
+  color: #6c757d;
+}
+
+.report-info p strong {
+  color: #495057;
+}
+
+/* Responsive Design - Đồng bộ với thiết kế chung */
+@media (max-width: 1200px) {
+  .reports-container {
+    grid-template-columns: 250px 1fr;
+    gap: 15px;
+  }
+
+  .reports-header {
+    text-align: center;
+  }
+
+  .reports-header h2 {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .reports-container {
+    grid-template-columns: 1fr;
+    gap: 15px;
+    height: auto;
+  }
+
+  .control-panel, .results-area {
+    height: auto;
+    max-height: none;
+  }
+
+  .admin-reports {
+    padding: 15px;
+  }
+
+  .reports-header {
+    padding: 15px;
+  }
+
+  .reports-header h2 {
+    font-size: 22px;
+  }
+
+  .date-range-inputs {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .date-range-inputs input[type="date"] {
+    width: 100%;
+  }
+
+  .quick-date-buttons {
+    justify-content: center;
+  }
+
+  .table-toolbar {
+    flex-direction: column;
+    gap: 15px;
+    align-items: stretch;
+  }
+
+  .report-info {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .toolbar-actions {
+    justify-content: center;
+  }
+}
+
+/* Animation cho table rows - Đồng bộ với Management.css */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.report-table tbody tr {
+  animation: fadeInUp 0.3s ease forwards;
+}
+
+.report-table tbody tr:nth-child(even) {
+  background-color: #f9fafb;
+}
+
+.report-table tbody tr:nth-child(odd) {
+  animation-delay: 0.2s;
+}
+
+/* Animation for loading state */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-state::before {
+  content: "⏳";
+  animation: spin 1s linear infinite;
+  margin-right: 10px;
+}
+
+/* Error message styling - Đồng bộ với thiết kế chung */
+.error-message {
+  background-color: #fee2e2;
+  color: #dc2626;
+  padding: 15px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #fecaca;
+  font-weight: 500;
+  border-left: 4px solid #dc2626;
+}
+
+
+
+
+
+
+
+/* Custom scrollbar for table */
+.table-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}

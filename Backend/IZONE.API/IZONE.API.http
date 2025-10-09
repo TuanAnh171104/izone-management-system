@@ -1,0 +1,19 @@
+@IZONE.API_HostAddress = http://localhost:5080
+
+### Test DiaDiem endpoints
+GET {{IZONE.API_HostAddress}}/api/DiaDiem
+Accept: application/json
+
+### Test ThueMatBang endpoints
+GET {{IZONE.API_HostAddress}}/api/ThueMatBang
+Accept: application/json
+
+### Test ThueMatBang by DiaDiem ID (thay 1 bằng ID thực tế)
+GET {{IZONE.API_HostAddress}}/api/ThueMatBang/dia-diem/1
+Accept: application/json
+
+### Test LopHoc endpoints
+GET {{IZONE.API_HostAddress}}/api/LopHoc
+Accept: application/json
+
+###
