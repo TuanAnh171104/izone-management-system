@@ -195,16 +195,6 @@ https://localhost:5001/swagger
 
 Dự án này được phát triển cho mục đích học tập và khóa luận tốt nghiệp.
 
-## 👨‍💻 Tác giả
-
-- **Sinh viên**: [Tên của bạn]
-- **Giảng viên hướng dẫn**: [Tên giảng viên]
-- **Trường**: [Tên trường đại học]
-
-## 📞 Liên hệ
-
-- **Email**: [email của bạn]
-- **GitHub**: [GitHub profile của bạn]
 
 ---
 
