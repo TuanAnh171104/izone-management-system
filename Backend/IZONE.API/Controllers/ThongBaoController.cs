@@ -27,10 +27,12 @@ namespace IZONE.API.Controllers
     public class ThongBaoController : ControllerBase
     {
         private readonly IThongBaoRepository _thongBaoRepository;
+        private readonly ILopHocRepository _lopHocRepository;
 
-        public ThongBaoController(IThongBaoRepository thongBaoRepository)
+        public ThongBaoController(IThongBaoRepository thongBaoRepository, ILopHocRepository lopHocRepository)
         {
             _thongBaoRepository = thongBaoRepository;
+            _lopHocRepository = lopHocRepository;
         }
 
         [HttpGet]

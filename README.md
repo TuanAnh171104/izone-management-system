@@ -197,15 +197,7 @@ Dự án này được phát triển cho mục đích học tập và khóa lu�
 
 ## 👨‍💻 Tác giả
 
-- **Sinh viên**: [Tên của bạn]
-- **Giảng viên hướng dẫn**: [Tên giảng viên]
-- **Trường**: [Tên trường đại học]
-
-## 📞 Liên hệ
-
-- **Email**: [email của bạn]
-- **GitHub**: [GitHub profile của bạn]
-
----
+- **Sinh viên**: [Nguyễn Tuấn Anh]
+- **Trường**: [Đại học Kinh tế quốc dân]
 
 ⭐ Nếu dự án này hữu ích với bạn, hãy cho một sao để ủng hộ!

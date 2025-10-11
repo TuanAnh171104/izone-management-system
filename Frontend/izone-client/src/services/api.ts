@@ -1035,7 +1035,7 @@ export const thongBaoService = {
     return response.data;
   },
 
-  // Send class notification
+  // Send class notification (sends to both students and lecturer)
   sendClassNotification: async (lopId: number, noiDung: string): Promise<ThongBao> => {
     const response = await apiClient.post<ThongBao>('/ThongBao/class', { LopId: lopId, NoiDung: noiDung });
     return response.data;

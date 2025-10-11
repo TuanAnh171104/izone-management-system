@@ -68,7 +68,6 @@ const AdminDashboard: React.FC = () => {
     <div className="management-container">
       <div className="management-header">
         <h2>Tổng quan hệ thống</h2>
-        <p>Thống kê tổng quan về hệ thống IZONE</p>
       </div>
       
       <div className="dashboard-stats" style={{ 

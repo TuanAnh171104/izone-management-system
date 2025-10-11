@@ -13,8 +13,8 @@ namespace IZONE.Infrastructure.Migrations
             // Drop the existing CHECK constraint
             migrationBuilder.Sql("ALTER TABLE [ThongBao] DROP CONSTRAINT [CK__ThongBao__LoaiNg__09A971A2]");
 
-            // Add the new CHECK constraint with the correct values
-            migrationBuilder.Sql("ALTER TABLE [ThongBao] ADD CONSTRAINT [CK__ThongBao__LoaiNg__09A971A2] CHECK ([LoaiNguoiNhan] IN ('HocVien','LopHoc','ToanHeThong'))");
+            // Add the new CHECK constraint with the correct values including GiangVien
+            migrationBuilder.Sql("ALTER TABLE [ThongBao] ADD CONSTRAINT [CK__ThongBao__LoaiNg__09A971A2] CHECK ([LoaiNguoiNhan] IN ('HocVien','LopHoc','ToanHeThong','GiangVien'))");
         }
 
         /// <inheritdoc />
