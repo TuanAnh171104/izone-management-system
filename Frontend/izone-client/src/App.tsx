@@ -17,6 +17,13 @@ import AdminDiaDiemList from './pages/admin/AdminDiaDiemList';
 import AdminBaoLuuList from './pages/admin/AdminBaoLuuList';
 import AdminThongBaoList from './pages/admin/AdminThongBaoList';
 import AdminReports from './pages/admin/AdminReports';
+// Lecturer imports
+import LecturerLayout from './pages/lecturer/LecturerLayout';
+import LecturerDashboard from './pages/lecturer/LecturerDashboard';
+import LecturerClasses from './pages/lecturer/LecturerClasses';
+import LecturerClassDetail from './pages/lecturer/LecturerClassDetail';
+import LecturerNotifications from './pages/lecturer/LecturerNotifications';
+import ApiTest from './pages/lecturer/ApiTest';
 
 
 // Tạo các component tạm thời cho các trang
@@ -48,8 +55,9 @@ const AppContent: React.FC = () => {
   }, []);
 
   // Check if current route is admin or user dashboard
-  const isInDashboard = location.pathname.startsWith('/admin') || 
-                       location.pathname.startsWith('/giang-vien') || 
+  const isInDashboard = location.pathname.startsWith('/admin') ||
+                       location.pathname.startsWith('/lecturer') ||
+                       location.pathname.startsWith('/giang-vien') ||
                        location.pathname.startsWith('/hoc-vien');
 
   // Show header/footer only on public pages or when not logged in
@@ -81,6 +89,15 @@ const AppContent: React.FC = () => {
             <Route path="thong-bao" element={<AdminThongBaoList />} />
             <Route path="bao-cao" element={<AdminReports />} />
           </Route>
+          {/* Lecturer routes */}
+          <Route path="/lecturer/*" element={<LecturerLayout />}>
+            <Route index element={<LecturerDashboard />} />
+            <Route path="classes" element={<LecturerClasses />} />
+            <Route path="class/:id" element={<LecturerClassDetail />} />
+            <Route path="notifications" element={<LecturerNotifications />} />
+          </Route>
+          {/* API Test route (public) */}
+          <Route path="/api-test" element={<ApiTest />} />
         </Routes>
       </main>
       {showHeaderFooter && <Footer />}

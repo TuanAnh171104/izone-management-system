@@ -98,6 +98,116 @@ namespace IZONE.API.Controllers
             return Ok(lopHocs);
         }
 
+        // GET: api/LopHoc/lecturer/{giangVienID}/paginated
+        [HttpGet("lecturer/{giangVienID}/paginated")]
+        public async Task<ActionResult<object>> GetLopHocByLecturerPaginated(
+            int giangVienID,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string searchTerm = "",
+            [FromQuery] string statusFilter = "all")
+        {
+            try
+            {
+                // Validate pagination parameters
+                if (page < 1) page = 1;
+                if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
+                var allLopHocs = await _lopHocRepository.GetAllAsync();
+
+                if (allLopHocs == null || !allLopHocs.Any())
+                {
+                    return Ok(new
+                    {
+                        data = new List<object>(),
+                        pagination = new
+                        {
+                            currentPage = 1,
+                            totalPages = 1,
+                            totalItems = 0,
+                            itemsPerPage = pageSize
+                        }
+                    });
+                }
+
+                // Filter by lecturer ID
+                var lecturerLopHocs = allLopHocs.Where(l => l.GiangVienID == giangVienID).ToList();
+
+                // Apply status filter
+                var filteredLopHocs = ApplyStatusFilter(lecturerLopHocs, statusFilter);
+
+                // Apply search filter
+                if (!string.IsNullOrEmpty(searchTerm))
+                {
+                    filteredLopHocs = ApplySearchFilter(filteredLopHocs, searchTerm);
+                }
+
+                // Calculate pagination
+                var totalItems = filteredLopHocs.Count();
+                var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+                var skip = (page - 1) * pageSize;
+                var paginatedLopHocs = filteredLopHocs.Skip(skip).Take(pageSize).ToList();
+
+                // Map to response format
+                var result = paginatedLopHocs.Select(l => new
+                {
+                    lopID = l.LopID,
+                    khoaHocID = l.KhoaHocID,
+                    giangVienID = l.GiangVienID,
+                    diaDiemID = l.DiaDiemID,
+                    ngayBatDau = l.NgayBatDau.ToString("yyyy-MM-dd"),
+                    ngayKetThuc = l.NgayKetThuc?.ToString("yyyy-MM-dd") ?? "",
+                    caHoc = l.CaHoc ?? "",
+                    ngayHocTrongTuan = l.NgayHocTrongTuan ?? "",
+                    donGiaBuoiDay = l.DonGiaBuoiDay > 0 ? l.DonGiaBuoiDay : 0,
+                    thoiLuongGio = l.ThoiLuongGio > 0 ? l.ThoiLuongGio : 1.5m,
+                    soLuongToiDa = l.SoLuongToiDa ?? 0,
+                    trangThai = l.TrangThai ?? "ChuaBatDau",
+                    // Thông tin bổ sung từ navigation properties
+                    khoaHoc = l.KhoaHoc != null ? new
+                    {
+                        khoaHocID = l.KhoaHoc.KhoaHocID,
+                        tenKhoaHoc = l.KhoaHoc.TenKhoaHoc ?? "",
+                        soBuoi = l.KhoaHoc.SoBuoi,
+                        hocPhi = l.KhoaHoc.HocPhi,
+                        donGiaTaiLieu = l.KhoaHoc.DonGiaTaiLieu
+                    } : null,
+                    giangVien = l.GiangVien != null ? new
+                    {
+                        giangVienID = l.GiangVien.GiangVienID,
+                        hoTen = l.GiangVien.HoTen ?? "",
+                        chuyenMon = l.GiangVien.ChuyenMon ?? ""
+                    } : null,
+                    diaDiem = l.DiaDiem != null ? new
+                    {
+                        diaDiemID = l.DiaDiem.DiaDiemID,
+                        tenCoSo = l.DiaDiem.TenCoSo ?? "",
+                        diaChi = l.DiaDiem.DiaChi ?? "",
+                        sucChua = l.DiaDiem.SucChua ?? 0
+                    } : null
+                });
+
+                var paginationInfo = new
+                {
+                    currentPage = page,
+                    totalPages = totalPages,
+                    totalItems = totalItems,
+                    itemsPerPage = pageSize
+                };
+
+                return Ok(new
+                {
+                    data = result,
+                    pagination = paginationInfo
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi lấy danh sách lớp học phân trang cho giảng viên {GiangVienID}", giangVienID);
+                return StatusCode(500, new { message = "Không thể tải danh sách lớp học", error = ex.Message });
+            }
+        }
+
         // GET: api/LopHoc/5
         [HttpGet("{id}")]
         public async Task<ActionResult<LopHoc>> GetLopHocById(int id)
@@ -798,9 +908,10 @@ namespace IZONE.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteLopHoc(int id)
         {
+            using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                _logger.LogInformation("Bắt đầu xóa lớp học với ID: {LopID}", id);
+                _logger.LogInformation("=== BẮT ĐẦU XÓA LỚP HỌC VỚI ID: {LopID} ===", id);
 
                 // Kiểm tra lớp học có tồn tại không
                 var lopHoc = await _lopHocRepository.GetByIdAsync(id);
@@ -810,146 +921,187 @@ namespace IZONE.API.Controllers
                     return NotFound(new { message = $"Không tìm thấy lớp học với ID {id}" });
                 }
 
+                _logger.LogInformation("Tìm thấy lớp học: {TenKhoaHoc} - {NgayBatDau}",
+                    lopHoc.KhoaHoc?.TenKhoaHoc ?? "N/A",
+                    lopHoc.NgayBatDau.ToString("yyyy-MM-dd"));
+
                 // Cho phép xóa lớp học ở bất kỳ trạng thái nào (kể cả đang học)
                 // Chỉ cần đảm bảo không có ràng buộc dữ liệu
 
-                // Kiểm tra và xử lý các bản ghi liên quan trước khi xóa
-                try
+                // KIỂM TRA CÁC BẢNG LIÊN QUAN TRƯỚC KHI XÓA
+                _logger.LogInformation("=== KIỂM TRA CÁC RÀNG BUỘC ===");
+
+                // 1. Kiểm tra BuoiHoc (Bảng lá nhất - phải xóa đầu tiên)
+                var buoiHocCount = await _context.BuoiHocs.CountAsync(b => b.LopID == id);
+                _logger.LogInformation("Số buổi học liên quan: {Count}", buoiHocCount);
+
+                // 2. Kiểm tra DangKyLop
+                var dangKyLopCount = await _context.DangKyLops.CountAsync(d => d.LopID == id);
+                _logger.LogInformation("Số đăng ký lớp liên quan: {Count}", dangKyLopCount);
+
+                // 3. Kiểm tra ChiPhi
+                var chiPhiCount = await _context.ChiPhis.CountAsync(c => c.LopID == id);
+                _logger.LogInformation("Số chi phí liên quan: {Count}", chiPhiCount);
+
+                // 4. Kiểm tra DiemSo
+                var diemSoCount = await _context.DiemSos.CountAsync(d => d.LopID == id);
+                _logger.LogInformation("Số điểm số liên quan: {Count}", diemSoCount);
+
+                // BẮT ĐẦU XÓA THEO THỨ TỰ ĐÚNG (TỪ BẢNG LÁ ĐẾN BẢNG GỐC)
+                _logger.LogInformation("=== BẮT ĐẦU XÓA DỮ LIỆU ===");
+
+                // 1. Xóa DiemDanh trước (lá nhất)
+                var diemDanhCount = await _context.DiemDanhs.CountAsync(d => d.BuoiHoc.LopID == id);
+                if (diemDanhCount > 0)
                 {
-                    // 1. Kiểm tra và xử lý ChiPhi liên quan đến lớp học này
-                    var chiPhis = await _context.ChiPhis.Where(c => c.LopID == id).ToListAsync();
-                    if (chiPhis.Any())
-                    {
-                        _logger.LogInformation("Tìm thấy {Count} chi phí liên quan đến lớp học {LopID}", chiPhis.Count, id);
-                        _context.ChiPhis.RemoveRange(chiPhis);
-                        _logger.LogInformation("Đã xóa {Count} chi phí liên quan", chiPhis.Count);
-                    }
-
-                    // 2. Kiểm tra và xử lý DiemSo liên quan đến lớp học này
-                    var diemSos = await _context.DiemSos.Where(d => d.LopID == id).ToListAsync();
-                    if (diemSos.Any())
-                    {
-                        _logger.LogInformation("Tìm thấy {Count} điểm số liên quan đến lớp học {LopID}", diemSos.Count, id);
-                        _context.DiemSos.RemoveRange(diemSos);
-                        _logger.LogInformation("Đã xóa {Count} điểm số liên quan", diemSos.Count);
-                    }
-
-                    // 3. Kiểm tra và xử lý DangKyLop liên quan đến lớp học này
-                    var dangKyLops = await _context.DangKyLops.Where(d => d.LopID == id).ToListAsync();
-                    if (dangKyLops.Any())
-                    {
-                        _logger.LogInformation("Tìm thấy {Count} đăng ký lớp liên quan đến lớp học {LopID}", dangKyLops.Count, id);
-
-                        // Xóa các bản ghi liên quan đến từng đăng ký lớp
-                        foreach (var dangKyLop in dangKyLops)
-                        {
-                            // Xóa ThanhToan liên quan
-                            var thanhToans = await _context.ThanhToans.Where(t => t.DangKyID == dangKyLop.DangKyID).ToListAsync();
-                            if (thanhToans.Any())
-                            {
-                                _context.ThanhToans.RemoveRange(thanhToans);
-                            }
-
-                            // Xóa BaoLuu liên quan
-                            var baoLuus = await _context.BaoLuus.Where(b => b.DangKyID == dangKyLop.DangKyID).ToListAsync();
-                            if (baoLuus.Any())
-                            {
-                                _context.BaoLuus.RemoveRange(baoLuus);
-                            }
-
-                            // Xóa ViHocVien liên quan (các giao dịch ví học viên)
-                            var viHocViens = await _context.ViHocViens.Where(v => v.DangKyID == dangKyLop.DangKyID).ToListAsync();
-                            if (viHocViens.Any())
-                            {
-                                _context.ViHocViens.RemoveRange(viHocViens);
-                            }
-                        }
-
-                        // Xóa các đăng ký lớp
-                        _context.DangKyLops.RemoveRange(dangKyLops);
-                        _logger.LogInformation("Đã xóa {Count} đăng ký lớp và các bản ghi liên quan", dangKyLops.Count);
-                    }
-
-                    // 4. Kiểm tra và xử lý BuoiHoc liên quan đến lớp học này
-                    var buoiHocs = await _context.BuoiHocs.Where(b => b.LopID == id).ToListAsync();
-                    if (buoiHocs.Any())
-                    {
-                        _logger.LogInformation("Tìm thấy {Count} buổi học liên quan đến lớp học {LopID}", buoiHocs.Count, id);
-
-                        // Xóa DiemDanh liên quan đến từng buổi học
-                        foreach (var buoiHoc in buoiHocs)
-                        {
-                            var diemDanhs = await _context.DiemDanhs.Where(d => d.BuoiHocID == buoiHoc.BuoiHocID).ToListAsync();
-                            if (diemDanhs.Any())
-                            {
-                                _context.DiemDanhs.RemoveRange(diemDanhs);
-                            }
-                        }
-
-                        // Xóa các buổi học
-                        _context.BuoiHocs.RemoveRange(buoiHocs);
-                        _logger.LogInformation("Đã xóa {Count} buổi học và điểm danh liên quan", buoiHocs.Count);
-                    }
-
-                    // 5. Cuối cùng, xóa lớp học bằng ExecuteSqlRaw để tránh lỗi OUTPUT clause
-                    _logger.LogInformation("Đang xóa lớp học với ID: {LopID}", id);
-                    var deleteResult = await _context.Database.ExecuteSqlRawAsync("DELETE FROM LopHoc WHERE LopID = {0}", id);
-
-                    if (deleteResult == 0)
-                    {
-                        throw new Exception($"Không thể xóa lớp học với ID {id} hoặc lớp học không tồn tại");
-                    }
-
-                    _logger.LogInformation("Lớp học đã được xóa thành công với ID: {LopID}", id);
-
-                    return Ok(new
-                    {
-                        message = "Lớp học đã được xóa thành công",
-                        lopID = id,
-                        tenKhoaHoc = lopHoc.KhoaHoc?.TenKhoaHoc ?? "Không xác định",
-                        ngayBatDau = lopHoc.NgayBatDau.ToString("yyyy-MM-dd")
-                    });
+                    var deletedDiemDanh = await _context.Database.ExecuteSqlRawAsync(
+                        "DELETE dd FROM DiemDanh dd INNER JOIN BuoiHoc bh ON dd.BuoiHocID = bh.BuoiHocID WHERE bh.LopID = {0}", id);
+                    _logger.LogInformation("Đã xóa {Count} điểm danh liên quan", deletedDiemDanh);
                 }
-                catch (DbUpdateException dbEx)
+
+                // 2. Xóa DiemSo liên quan đến các buổi học của lớp
+                if (diemSoCount > 0)
                 {
-                    _logger.LogError(dbEx, "Lỗi database khi xóa lớp học với ID: {LopID}", id);
+                    var deletedDiemSo = await _context.Database.ExecuteSqlRawAsync(
+                        "DELETE ds FROM DiemSo ds INNER JOIN BuoiHoc bh ON ds.BuoiHocID = bh.BuoiHocID WHERE bh.LopID = {0}", id);
+                    _logger.LogInformation("Đã xóa {Count} điểm số liên quan", deletedDiemSo);
+                }
 
-                    // Kiểm tra lỗi constraint cụ thể
-                    if (dbEx.InnerException?.Message.Contains("FOREIGN KEY") == true)
-                    {
-                        return BadRequest(new
-                        {
-                            message = "Không thể xóa lớp học vì vẫn còn dữ liệu liên quan chưa được xử lý. Vui lòng liên hệ quản trị viên để được hỗ trợ."
-                        });
-                    }
-                    else if (dbEx.InnerException?.Message.Contains("CHECK") == true)
-                    {
-                        return BadRequest(new { message = "Dữ liệu không thỏa mãn ràng buộc kiểm tra trong database" });
-                    }
+                // 3. Xóa BuoiHoc (bảng lá)
+                if (buoiHocCount > 0)
+                {
+                    var deletedBuoiHoc = await _context.Database.ExecuteSqlRawAsync("DELETE FROM BuoiHoc WHERE LopID = {0}", id);
+                    _logger.LogInformation("Đã xóa {Count} buổi học", deletedBuoiHoc);
+                }
 
+                // 4. Xóa ThanhToan liên quan đến đăng ký lớp
+                if (dangKyLopCount > 0)
+                {
+                    var thanhToanCount = await _context.ThanhToans.CountAsync(t => t.DangKyLop.LopID == id);
+                    if (thanhToanCount > 0)
+                    {
+                        var deletedThanhToan = await _context.Database.ExecuteSqlRawAsync(
+                            "DELETE tt FROM ThanhToan tt INNER JOIN DangKyLop dk ON tt.DangKyID = dk.DangKyID WHERE dk.LopID = {0}", id);
+                        _logger.LogInformation("Đã xóa {Count} thanh toán liên quan", deletedThanhToan);
+                    }
+                }
+
+                // 5. Xóa BaoLuu liên quan đến đăng ký lớp
+                if (dangKyLopCount > 0)
+                {
+                    var baoLuuCount = await _context.BaoLuus.CountAsync(b => b.DangKyLop.LopID == id);
+                    if (baoLuuCount > 0)
+                    {
+                        var deletedBaoLuu = await _context.Database.ExecuteSqlRawAsync(
+                            "DELETE bl FROM BaoLuu bl INNER JOIN DangKyLop dk ON bl.DangKyID = dk.DangKyID WHERE dk.LopID = {0}", id);
+                        _logger.LogInformation("Đã xóa {Count} bảo lưu liên quan", deletedBaoLuu);
+                    }
+                }
+
+                // 6. Xóa ViHocVien liên quan đến đăng ký lớp
+                if (dangKyLopCount > 0)
+                {
+                    var viHocVienCount = await _context.ViHocViens.CountAsync(v => v.DangKyLop.LopID == id);
+                    if (viHocVienCount > 0)
+                    {
+                        var deletedViHocVien = await _context.Database.ExecuteSqlRawAsync(
+                            "DELETE vv FROM ViHocVien vv INNER JOIN DangKyLop dk ON vv.DangKyID = dk.DangKyID WHERE dk.LopID = {0}", id);
+                        _logger.LogInformation("Đã xóa {Count} ví học viên liên quan", deletedViHocVien);
+                    }
+                }
+
+                // 7. Xóa DangKyLop
+                if (dangKyLopCount > 0)
+                {
+                    var deletedDangKyLop = await _context.Database.ExecuteSqlRawAsync("DELETE FROM DangKyLop WHERE LopID = {0}", id);
+                    _logger.LogInformation("Đã xóa {Count} đăng ký lớp", deletedDangKyLop);
+                }
+
+                // 8. Xóa ChiPhi (có thể null)
+                if (chiPhiCount > 0)
+                {
+                    var deletedChiPhi = await _context.Database.ExecuteSqlRawAsync("DELETE FROM ChiPhi WHERE LopID = {0}", id);
+                    _logger.LogInformation("Đã xóa {Count} chi phí", deletedChiPhi);
+                }
+
+                // 9. Xóa DiemSo trực tiếp liên quan đến lớp (nếu còn sót)
+                if (diemSoCount > 0)
+                {
+                    var deletedDiemSoDirect = await _context.Database.ExecuteSqlRawAsync("DELETE FROM DiemSo WHERE LopID = {0}", id);
+                    _logger.LogInformation("Đã xóa {Count} điểm số trực tiếp", deletedDiemSoDirect);
+                }
+
+                // 10. Cuối cùng, xóa lớp học
+                _logger.LogInformation("Đang xóa lớp học với ID: {LopID}", id);
+                var deleteResult = await _context.Database.ExecuteSqlRawAsync("DELETE FROM LopHoc WHERE LopID = {0}", id);
+
+                if (deleteResult == 0)
+                {
+                    throw new Exception($"Không thể xóa lớp học với ID {id} hoặc lớp học không tồn tại");
+                }
+
+                // Commit transaction
+                await transaction.CommitAsync();
+
+                _logger.LogInformation("=== LỚP HỌC ĐÃ ĐƯỢC XÓA THÀNH CÔNG ===");
+                _logger.LogInformation("LopID: {LopID}, TenKhoaHoc: {TenKhoaHoc}, NgayBatDau: {NgayBatDau}",
+                    id, lopHoc.KhoaHoc?.TenKhoaHoc ?? "N/A", lopHoc.NgayBatDau.ToString("yyyy-MM-dd"));
+
+                return Ok(new
+                {
+                    message = "Lớp học đã được xóa thành công",
+                    lopID = id,
+                    tenKhoaHoc = lopHoc.KhoaHoc?.TenKhoaHoc ?? "Không xác định",
+                    ngayBatDau = lopHoc.NgayBatDau.ToString("yyyy-MM-dd"),
+                    deletedRecords = new
+                    {
+                        buoiHoc = buoiHocCount,
+                        dangKyLop = dangKyLopCount,
+                        chiPhi = chiPhiCount,
+                        diemSo = diemSoCount,
+                        diemDanh = diemDanhCount
+                    }
+                });
+            }
+            catch (DbUpdateException dbEx)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(dbEx, "Lỗi database khi xóa lớp học với ID: {LopID}", id);
+
+                // Kiểm tra lỗi constraint cụ thể
+                if (dbEx.InnerException?.Message.Contains("FOREIGN KEY") == true)
+                {
                     return BadRequest(new
                     {
-                        message = "Lỗi khi xóa lớp học khỏi database",
+                        message = "Không thể xóa lớp học vì vẫn còn dữ liệu liên quan chưa được xử lý.",
+                        error = dbEx.InnerException?.Message,
+                        solution = "Vui lòng liên hệ quản trị viên để được hỗ trợ xử lý dữ liệu ràng buộc."
+                    });
+                }
+                else if (dbEx.InnerException?.Message.Contains("CHECK") == true)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Dữ liệu không thỏa mãn ràng buộc kiểm tra trong database",
                         error = dbEx.InnerException?.Message
                     });
                 }
-                catch (Exception ex)
+
+                return BadRequest(new
                 {
-                    _logger.LogError(ex, "Lỗi không xác định khi xóa lớp học với ID: {LopID}", id);
-                    return StatusCode(500, new
-                    {
-                        message = "Lỗi server nội bộ khi xóa lớp học",
-                        error = ex.Message
-                    });
-                }
+                    message = "Lỗi khi xóa lớp học khỏi database",
+                    error = dbEx.InnerException?.Message
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Lỗi không xác định khi xử lý yêu cầu xóa lớp học với ID: {LopID}", id);
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Lỗi không xác định khi xóa lớp học với ID: {LopID}", id);
                 return StatusCode(500, new
                 {
-                    message = "Lỗi server nội bộ",
-                    error = ex.Message
+                    message = "Lỗi server nội bộ khi xóa lớp học",
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace
                 });
             }
         }
@@ -1177,6 +1329,86 @@ namespace IZONE.API.Controllers
                 CaHocChanged: existingLopHoc.CaHoc != newLopHocData.CaHoc,
                 NgayBatDauChanged: existingLopHoc.NgayBatDau != newLopHocData.NgayBatDau
             );
+        }
+
+        /// <summary>
+        /// Áp dụng bộ lọc trạng thái cho danh sách lớp học
+        /// </summary>
+        private List<LopHoc> ApplyStatusFilter(List<LopHoc> lopHocs, string statusFilter)
+        {
+            if (statusFilter == "all")
+                return lopHocs;
+
+            var today = DateTime.Today;
+
+            return lopHocs.Where(lopHoc =>
+            {
+                switch (statusFilter)
+                {
+                    case "upcoming":
+                        // Chưa bắt đầu: ngày bắt đầu > hôm nay
+                        return lopHoc.NgayBatDau > today;
+
+                    case "ongoing":
+                        // Đang diễn ra: ngày bắt đầu <= hôm nay và (chưa có ngày kết thúc hoặc ngày kết thúc >= hôm nay)
+                        return lopHoc.NgayBatDau <= today &&
+                               (!lopHoc.NgayKetThuc.HasValue || lopHoc.NgayKetThuc.Value >= today);
+
+                    case "completed":
+                        // Đã kết thúc: có ngày kết thúc và ngày kết thúc < hôm nay
+                        return lopHoc.NgayKetThuc.HasValue && lopHoc.NgayKetThuc.Value < today;
+
+                    default:
+                        return true;
+                }
+            }).ToList();
+        }
+
+        /// <summary>
+        /// Áp dụng bộ lọc tìm kiếm cho danh sách lớp học
+        /// </summary>
+        private List<LopHoc> ApplySearchFilter(List<LopHoc> lopHocs, string searchTerm)
+        {
+            if (string.IsNullOrWhiteSpace(searchTerm))
+                return lopHocs;
+
+            var searchLower = searchTerm.ToLower();
+
+            return lopHocs.Where(lopHoc =>
+            {
+                // Tìm kiếm theo ID lớp
+                if (lopHoc.LopID.ToString().Contains(searchLower))
+                    return true;
+
+                // Tìm kiếm theo ID khóa học
+                if (lopHoc.KhoaHocID.ToString().Contains(searchLower))
+                    return true;
+
+                // Tìm kiếm theo ID giảng viên
+                if (lopHoc.GiangVienID.ToString().Contains(searchLower))
+                    return true;
+
+                // Tìm kiếm theo tên khóa học (nếu có thông tin khóa học)
+                if (lopHoc.KhoaHoc != null && lopHoc.KhoaHoc.TenKhoaHoc != null &&
+                    lopHoc.KhoaHoc.TenKhoaHoc.ToLower().Contains(searchLower))
+                    return true;
+
+                // Tìm kiếm theo tên giảng viên (nếu có thông tin giảng viên)
+                if (lopHoc.GiangVien != null && lopHoc.GiangVien.HoTen != null &&
+                    lopHoc.GiangVien.HoTen.ToLower().Contains(searchLower))
+                    return true;
+
+                // Tìm kiếm theo địa điểm (nếu có thông tin địa điểm)
+                if (lopHoc.DiaDiem != null && lopHoc.DiaDiem.TenCoSo != null &&
+                    lopHoc.DiaDiem.TenCoSo.ToLower().Contains(searchLower))
+                    return true;
+
+                // Tìm kiếm theo trạng thái
+                if (lopHoc.TrangThai != null && lopHoc.TrangThai.ToLower().Contains(searchLower))
+                    return true;
+
+                return false;
+            }).ToList();
         }
     }
 }

@@ -5,6 +5,7 @@ namespace IZONE.Core.Interfaces
     public interface IBuoiHocRepository : IGenericRepository<BuoiHoc>
     {
         Task<IEnumerable<BuoiHoc>> GetByLopIdAsync(int lopId);
+        Task<IEnumerable<BuoiHoc>> GetUpcomingSessionsByLopIdAsync(int lopId, int days);
         Task<IEnumerable<BuoiHoc>> GetByNgayHocAsync(DateTime ngayHoc);
         Task<IEnumerable<BuoiHoc>> GetByTrangThaiAsync(string trangThai);
         Task<IEnumerable<BuoiHoc>> GetByGiangVienThayTheIdAsync(int giangVienId);

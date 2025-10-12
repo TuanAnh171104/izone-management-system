@@ -60,6 +60,15 @@ export interface LoginResponse {
     taiKhoanID: number;
     email: string;
     vaiTro: string;
+    // Các trường bổ sung cho giảng viên
+    giangVienID?: number;
+    hoTen?: string;
+    chuyenMon?: string;
+    // Các trường bổ sung cho học viên
+    hocVienID?: number;
+    ngaySinh?: string;
+    sdt?: string;
+    taiKhoanVi?: number;
   };
 }
 
@@ -277,6 +286,164 @@ export interface BaoLuu {
   lyDo?: string | null;
 }
 
+export interface DangKyLop {
+  dangKyID: number;
+  hocVienID: number;
+  lopID: number;
+  ngayDangKy: string;
+  trangThaiDangKy: string;
+  trangThaiThanhToan: string;
+  ngayHuy?: string | null;
+  lyDoHuy?: string | null;
+}
+
+export interface BuoiHoc {
+  buoiHocID: number;
+  lopID: number;
+  ngayHoc: string;
+  thoiGianBatDau?: string | null;
+  thoiGianKetThuc?: string | null;
+  giangVienThayTheID?: number | null;
+  diaDiemID?: number | null;
+  trangThai: string;
+}
+
+export interface DiemDanh {
+  diemDanhID: number;
+  buoiHocID: number;
+  hocVienID: number;
+  coMat: boolean;
+  ghiChu?: string | null;
+}
+
+// DiemDanh Service
+export const diemDanhService = {
+  // Get all attendance records
+  getAll: async (): Promise<DiemDanh[]> => {
+    const response = await apiClient.get<DiemDanh[]>('/DiemDanh');
+    return response.data;
+  },
+
+  // Get attendance by ID
+  getById: async (id: number): Promise<DiemDanh> => {
+    const response = await apiClient.get<DiemDanh>(`/DiemDanh/${id}`);
+    return response.data;
+  },
+
+  // Get attendance by session ID
+  getByBuoiHocId: async (buoiHocId: number): Promise<DiemDanh[]> => {
+    const response = await apiClient.get<DiemDanh[]>(`/DiemDanh/buoi-hoc/${buoiHocId}`);
+    return response.data;
+  },
+
+  // Get attendance by student ID
+  getByHocVienId: async (hocVienId: number): Promise<DiemDanh[]> => {
+    const response = await apiClient.get<DiemDanh[]>(`/DiemDanh/hoc-vien/${hocVienId}`);
+    return response.data;
+  },
+
+  // Get attendance by session and student
+  getByBuoiHocAndHocVien: async (buoiHocId: number, hocVienId: number): Promise<DiemDanh> => {
+    const response = await apiClient.get<DiemDanh>(`/DiemDanh/buoi-hoc/${buoiHocId}/hoc-vien/${hocVienId}`);
+    return response.data;
+  },
+
+  // Get attendance by class ID
+  getAttendanceByLopId: async (lopId: number): Promise<DiemDanh[]> => {
+    const response = await apiClient.get<DiemDanh[]>(`/DiemDanh/attendance/lop/${lopId}`);
+    return response.data;
+  },
+
+  // Get attendance rate by student and class
+  getAttendanceRateByHocVien: async (hocVienId: number, lopId: number): Promise<number> => {
+    const response = await apiClient.get<number>(`/DiemDanh/attendance-rate/hoc-vien/${hocVienId}/lop/${lopId}`);
+    return response.data;
+  },
+
+  // Create attendance record
+  create: async (diemDanh: Omit<DiemDanh, 'diemDanhID'>): Promise<DiemDanh> => {
+    const response = await apiClient.post<DiemDanh>('/DiemDanh', diemDanh);
+    return response.data;
+  },
+
+  // Create multiple attendance records (bulk create)
+  createBulk: async (diemDanhList: Omit<DiemDanh, 'diemDanhID'>[]): Promise<DiemDanh[]> => {
+    const response = await apiClient.post<DiemDanh[]>('/DiemDanh/bulk', diemDanhList);
+    return response.data;
+  },
+
+  // Update attendance record
+  update: async (id: number, diemDanh: DiemDanh): Promise<void> => {
+    await apiClient.put(`/DiemDanh/${id}`, diemDanh);
+  },
+
+  // Delete attendance record
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/DiemDanh/${id}`);
+  },
+};
+
+// DangKyLop Service
+export const dangKyLopService = {
+  // Get all registrations
+  getAll: async (): Promise<DangKyLop[]> => {
+    const response = await apiClient.get<DangKyLop[]>('/DangKyLop');
+    return response.data;
+  },
+
+  // Get registration by ID
+  getById: async (id: number): Promise<DangKyLop> => {
+    const response = await apiClient.get<DangKyLop>(`/DangKyLop/${id}`);
+    return response.data;
+  },
+
+  // Get registrations by student ID
+  getByHocVienId: async (hocVienId: number): Promise<DangKyLop[]> => {
+    const response = await apiClient.get<DangKyLop[]>(`/DangKyLop/hoc-vien/${hocVienId}`);
+    return response.data;
+  },
+
+  // Get registrations by class ID
+  getByLopId: async (lopId: number): Promise<DangKyLop[]> => {
+    const response = await apiClient.get<DangKyLop[]>(`/DangKyLop/lop/${lopId}`);
+    return response.data;
+  },
+
+  // Get registrations by status
+  getByTrangThai: async (trangThai: string): Promise<DangKyLop[]> => {
+    const response = await apiClient.get<DangKyLop[]>(`/DangKyLop/trang-thai/${trangThai}`);
+    return response.data;
+  },
+
+  // Get registrations by payment status
+  getByTrangThaiThanhToan: async (trangThaiThanhToan: string): Promise<DangKyLop[]> => {
+    const response = await apiClient.get<DangKyLop[]>(`/DangKyLop/trang-thai-thanh-toan/${trangThaiThanhToan}`);
+    return response.data;
+  },
+
+  // Get registration by student and class
+  getByHocVienAndLop: async (hocVienId: number, lopId: number): Promise<DangKyLop> => {
+    const response = await apiClient.get<DangKyLop>(`/DangKyLop/hoc-vien/${hocVienId}/lop/${lopId}`);
+    return response.data;
+  },
+
+  // Create registration
+  create: async (dangKyLop: Omit<DangKyLop, 'dangKyID'>): Promise<DangKyLop> => {
+    const response = await apiClient.post<DangKyLop>('/DangKyLop', dangKyLop);
+    return response.data;
+  },
+
+  // Update registration
+  update: async (id: number, dangKyLop: DangKyLop): Promise<void> => {
+    await apiClient.put(`/DangKyLop/${id}`, dangKyLop);
+  },
+
+  // Delete registration
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/DangKyLop/${id}`);
+  },
+};
+
 export interface ThongBao {
   tBID: number;
   nguoiGui?: string | null;
@@ -305,7 +472,12 @@ export const taiKhoanService = {
     try {
       const response = await apiClient.post<any>('/TaiKhoan/login', credentials);
       console.log('✅ Login response:', response.data);
+      console.log('📊 Response status:', response.status);
+      console.log('📋 Response headers:', response.headers);
+
       const raw = response.data;
+      console.log('🔍 Raw response data:', raw);
+
       // Chuẩn hóa dữ liệu trả về thành LoginResponse
       const mapped: LoginResponse = {
         token: 'mock-token',
@@ -313,12 +485,19 @@ export const taiKhoanService = {
           taiKhoanID: raw.taiKhoanID || raw.TaiKhoanID,
           email: raw.email || raw.Email,
           vaiTro: raw.vaiTro || raw.VaiTro,
+          // Thêm các trường bổ sung nếu có
+          ...(raw.giangVienID && { giangVienID: raw.giangVienID }),
+          ...(raw.hocVienID && { hocVienID: raw.hocVienID }),
+          ...(raw.hoTen && { hoTen: raw.hoTen }),
+          ...(raw.chuyenMon && { chuyenMon: raw.chuyenMon }),
         },
       };
       console.log('🎯 Mapped response:', mapped);
       return mapped;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Login error:', error);
+      console.error('❌ Error response:', error.response?.data);
+      console.error('❌ Error status:', error.response?.status);
       throw error;
     }
   },
@@ -408,39 +587,150 @@ export const khoaHocService = {
   },
 };
 
+// BuoiHoc Service
+export const buoiHocService = {
+  // Get all sessions
+  getAll: async (): Promise<BuoiHoc[]> => {
+    const response = await apiClient.get<BuoiHoc[]>('/BuoiHoc');
+    return response.data;
+  },
+
+  // Get session by ID
+  getById: async (id: number): Promise<BuoiHoc> => {
+    const response = await apiClient.get<BuoiHoc>(`/BuoiHoc/${id}`);
+    return response.data;
+  },
+
+  // Get sessions by class ID
+  getByLopId: async (lopId: number): Promise<BuoiHoc[]> => {
+    const response = await apiClient.get<BuoiHoc[]>(`/BuoiHoc/lop/${lopId}`);
+    return response.data;
+  },
+
+  // Get sessions by date
+  getByNgayHoc: async (ngayHoc: string): Promise<BuoiHoc[]> => {
+    const response = await apiClient.get<BuoiHoc[]>('/BuoiHoc/ngay-hoc/' + ngayHoc);
+    return response.data;
+  },
+
+  // Get sessions by status
+  getByTrangThai: async (trangThai: string): Promise<BuoiHoc[]> => {
+    const response = await apiClient.get<BuoiHoc[]>(`/BuoiHoc/trang-thai/${trangThai}`);
+    return response.data;
+  },
+
+  // Get sessions by substitute lecturer
+  getByGiangVienThayTheId: async (giangVienId: number): Promise<BuoiHoc[]> => {
+    const response = await apiClient.get<BuoiHoc[]>(`/BuoiHoc/giang-vien-thay-the/${giangVienId}`);
+    return response.data;
+  },
+
+  // Get sessions by location
+  getByDiaDiemId: async (diaDiemId: number): Promise<BuoiHoc[]> => {
+    const response = await apiClient.get<BuoiHoc[]>(`/BuoiHoc/dia-diem/${diaDiemId}`);
+    return response.data;
+  },
+
+  // Get schedule by date range
+  getScheduleByDateRange: async (startDate: string, endDate: string): Promise<BuoiHoc[]> => {
+    const response = await apiClient.get<BuoiHoc[]>('/BuoiHoc/schedule', {
+      params: { startDate, endDate }
+    });
+    return response.data;
+  },
+
+  // Create session
+  create: async (buoiHoc: Omit<BuoiHoc, 'buoiHocID'>): Promise<BuoiHoc> => {
+    const response = await apiClient.post<BuoiHoc>('/BuoiHoc', buoiHoc);
+    return response.data;
+  },
+
+  // Update session
+  update: async (id: number, buoiHoc: BuoiHoc): Promise<void> => {
+    await apiClient.put(`/BuoiHoc/${id}`, buoiHoc);
+  },
+
+  // Delete session
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/BuoiHoc/${id}`);
+  },
+};
+
 // LopHoc Service
 export const lopHocService = {
   // Get all classes
   getAll: async (): Promise<LopHoc[]> => {
     try {
+      console.log('🔄 Đang gọi API LopHoc...');
       const response = await apiClient.get<any[]>('/LopHoc');
       console.log('📚 API Response for LopHoc:', response.data);
 
-      if (!response.data || !Array.isArray(response.data)) {
-        console.warn('⚠️ API trả về dữ liệu không hợp lệ hoặc rỗng');
+      if (!response.data) {
+        console.warn('⚠️ API trả về null hoặc undefined');
         return [];
       }
 
-      // Map API response to LopHoc interface
-      const mappedLopHocs: LopHoc[] = response.data.map(item => ({
-        lopID: item.lopID,
-        khoaHocID: item.khoaHocID,
-        giangVienID: item.giangVienID,
-        diaDiemID: item.diaDiemID,
-        ngayBatDau: item.ngayBatDau,
-        ngayKetThuc: item.ngayKetThuc || null,
-        caHoc: item.caHoc || null,
-        ngayHocTrongTuan: item.ngayHocTrongTuan || null,
-        donGiaBuoiDay: item.donGiaBuoiDay || null,
-        thoiLuongGio: item.thoiLuongGio,
-        soLuongToiDa: item.soLuongToiDa || null,
-        trangThai: item.trangThai || null
-      }));
+      if (!Array.isArray(response.data)) {
+        console.warn('⚠️ API trả về không phải array:', typeof response.data);
+        return [];
+      }
+
+      if (response.data.length === 0) {
+        console.log('📭 Không có lớp học nào trong database');
+        return [];
+      }
+
+      // Map API response to LopHoc interface với error handling tốt hơn
+      const mappedLopHocs: LopHoc[] = response.data
+        .filter(item => item && typeof item === 'object')
+        .map((item, index) => {
+          try {
+            return {
+              lopID: item.lopID || item.maLop || index + 1,
+              khoaHocID: item.khoaHocID || item.maKH || 0,
+              giangVienID: item.giangVienID || item.maGV || 0,
+              diaDiemID: item.diaDiemID || item.maDiaDiem || null,
+              ngayBatDau: item.ngayBatDau || new Date().toISOString().split('T')[0],
+              ngayKetThuc: item.ngayKetThuc || null,
+              caHoc: item.caHoc || null,
+              ngayHocTrongTuan: item.ngayHocTrongTuan || null,
+              donGiaBuoiDay: item.donGiaBuoiDay || null,
+              thoiLuongGio: item.thoiLuongGio || 1.5,
+              soLuongToiDa: item.soLuongToiDa || item.sucChua || null,
+              trangThai: item.trangThai || 'ChuaBatDau'
+            };
+          } catch (mapError) {
+            console.error(`❌ Lỗi khi map item ${index}:`, mapError);
+            return null;
+          }
+        })
+        .filter(item => item !== null) as LopHoc[];
 
       console.log('✅ Mapped LopHoc data:', mappedLopHocs);
       return mappedLopHocs;
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Lỗi khi lấy danh sách lớp học:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        config: error.config
+      });
+
+      // Nếu lỗi 401, thử gọi lại mà không cần token
+      if (error.response?.status === 401) {
+        console.log('🔄 Thử gọi lại API mà không cần authentication...');
+        try {
+          const directResponse = await axios.get<any[]>(`${API_BASE_URL}/LopHoc`, {
+            headers: { 'Content-Type': 'application/json' }
+          });
+          console.log('✅ Gọi trực tiếp thành công:', directResponse.data);
+          return directResponse.data || [];
+        } catch (directError) {
+          console.error('❌ Gọi trực tiếp cũng thất bại:', directError);
+        }
+      }
+
       throw error;
     }
   },
@@ -504,6 +794,64 @@ export const lopHocService = {
       console.log('✅ Xóa lớp học thành công');
     } catch (error) {
       console.error('❌ Lỗi khi xóa lớp học:', error);
+      throw error;
+    }
+  },
+
+  // Get paginated classes by lecturer with filters
+  getPaginatedByLecturer: async (
+    giangVienID: number,
+    page: number = 1,
+    pageSize: number = 10,
+    searchTerm: string = "",
+    statusFilter: string = "all"
+  ): Promise<{ data: LopHoc[]; pagination: any }> => {
+    try {
+      console.log('🔄 Đang gọi API phân trang cho giảng viên:', { giangVienID, page, pageSize, searchTerm, statusFilter });
+
+      const response = await apiClient.get(`/LopHoc/lecturer/${giangVienID}/paginated`, {
+        params: {
+          page,
+          pageSize,
+          searchTerm,
+          statusFilter
+        }
+      });
+
+      console.log('📚 API Response for paginated lecturer classes:', response.data);
+
+      const { data, pagination } = response.data;
+
+      // Map API response to LopHoc interface
+      const mappedLopHocs: LopHoc[] = data.map((item: any) => ({
+        lopID: item.lopID,
+        khoaHocID: item.khoaHocID,
+        giangVienID: item.giangVienID,
+        diaDiemID: item.diaDiemID,
+        ngayBatDau: item.ngayBatDau,
+        ngayKetThuc: item.ngayKetThuc || null,
+        caHoc: item.caHoc || null,
+        ngayHocTrongTuan: item.ngayHocTrongTuan || null,
+        donGiaBuoiDay: item.donGiaBuoiDay,
+        thoiLuongGio: item.thoiLuongGio,
+        soLuongToiDa: item.soLuongToiDa,
+        trangThai: item.trangThai
+      }));
+
+      console.log('✅ Mapped paginated LopHoc data:', mappedLopHocs);
+
+      return {
+        data: mappedLopHocs,
+        pagination: pagination
+      };
+    } catch (error: any) {
+      console.error('❌ Lỗi khi lấy danh sách lớp học phân trang:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        config: error.config
+      });
       throw error;
     }
   },

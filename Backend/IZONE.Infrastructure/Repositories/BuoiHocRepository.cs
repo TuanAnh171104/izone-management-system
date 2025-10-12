@@ -14,9 +14,6 @@ namespace IZONE.Infrastructure.Repositories
         public async Task<IEnumerable<BuoiHoc>> GetByLopIdAsync(int lopId)
         {
             return await _context.BuoiHocs
-                .Include(bh => bh.LopHoc)
-                .Include(bh => bh.GiangVienThayThe)
-                .Include(bh => bh.DiaDiem)
                 .Where(bh => bh.LopID == lopId)
                 .OrderBy(bh => bh.NgayHoc)
                 .ToListAsync();
@@ -72,6 +69,18 @@ namespace IZONE.Infrastructure.Repositories
                 .Where(bh => bh.NgayHoc >= startDate && bh.NgayHoc <= endDate)
                 .OrderBy(bh => bh.NgayHoc)
                 .ThenBy(bh => bh.ThoiGianBatDau)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<BuoiHoc>> GetUpcomingSessionsByLopIdAsync(int lopId, int days)
+        {
+            var endDate = DateTime.Now.AddDays(days);
+            return await _context.BuoiHocs
+                .Include(bh => bh.LopHoc)
+                .Include(bh => bh.GiangVienThayThe)
+                .Include(bh => bh.DiaDiem)
+                .Where(bh => bh.LopID == lopId && bh.NgayHoc >= DateTime.Now && bh.NgayHoc <= endDate)
+                .OrderBy(bh => bh.NgayHoc)
                 .ToListAsync();
         }
     }

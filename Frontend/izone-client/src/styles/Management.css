@@ -358,3 +358,81 @@
 .management-table tbody tr:nth-child(odd) {
   animation-delay: 0.2s;
 }
+
+/* Filter Button Styles */
+.filter-btn {
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.filter-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.filter-btn.active {
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+/* Class Card Styles for Lecturer Page */
+.class-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.class-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.class-header h3 {
+  margin: 0 0 5px 0;
+  color: #dc2626;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.class-header p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.class-info {
+  margin-bottom: 15px;
+}
+
+.class-info > div {
+  display: grid;
+  gap: 8px;
+}
+
+.class-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #f3f4f6;
+}
+
+/* Responsive adjustments for class cards */
+@media (max-width: 768px) {
+  .class-card {
+    padding: 15px;
+  }
+
+  .class-footer {
+    flex-direction: column;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .action-buttons {
+    justify-content: center;
+  }
+}

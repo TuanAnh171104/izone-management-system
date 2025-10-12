@@ -17,13 +17,15 @@ namespace IZONE.API.Controllers
     {
         private readonly ITaiKhoanRepository _taiKhoanRepository;
         private readonly IHocVienRepository _hocVienRepository;
+        private readonly IGiangVienRepository _giangVienRepository;
         private readonly IZONEDbContext _context;
         private readonly ILogger<TaiKhoanController> _logger;
 
-        public TaiKhoanController(ITaiKhoanRepository taiKhoanRepository, IHocVienRepository hocVienRepository, IZONEDbContext context, ILogger<TaiKhoanController> logger)
+        public TaiKhoanController(ITaiKhoanRepository taiKhoanRepository, IHocVienRepository hocVienRepository, IGiangVienRepository giangVienRepository, IZONEDbContext context, ILogger<TaiKhoanController> logger)
         {
             _taiKhoanRepository = taiKhoanRepository;
             _hocVienRepository = hocVienRepository;
+            _giangVienRepository = giangVienRepository;
             _context = context;
             _logger = logger;
         }
@@ -126,6 +128,50 @@ namespace IZONE.API.Controllers
                     return Unauthorized("Mật khẩu không đúng");
                 }
 
+                // Nếu là giảng viên, lấy thông tin giảng viên đầy đủ
+                if (taiKhoan.VaiTro == "GiangVien")
+                {
+                    _logger.LogInformation($"Đang tìm giảng viên cho email: {taiKhoan.Email}");
+                    var giangVien = await _giangVienRepository.GetByEmailAsync(taiKhoan.Email);
+
+                    if (giangVien != null)
+                    {
+                        _logger.LogInformation($"Tìm thấy giảng viên: ID={giangVien.GiangVienID}, HoTen={giangVien.HoTen}");
+                        return Ok(new {
+                            TaiKhoanID = taiKhoan.TaiKhoanID,
+                            Email = taiKhoan.Email,
+                            VaiTro = taiKhoan.VaiTro,
+                            GiangVienID = giangVien.GiangVienID,
+                            HoTen = giangVien.HoTen,
+                            ChuyenMon = giangVien.ChuyenMon
+                        });
+                    }
+                    else
+                    {
+                        _logger.LogWarning($"Không tìm thấy giảng viên cho email: {taiKhoan.Email}");
+                    }
+                }
+
+                // Nếu là học viên, lấy thông tin học viên đầy đủ
+                if (taiKhoan.VaiTro == "HocVien")
+                {
+                    var hocVien = await _hocVienRepository.GetByEmailAsync(taiKhoan.Email);
+                    if (hocVien != null)
+                    {
+                        return Ok(new {
+                            TaiKhoanID = taiKhoan.TaiKhoanID,
+                            Email = taiKhoan.Email,
+                            VaiTro = taiKhoan.VaiTro,
+                            HocVienID = hocVien.HocVienID,
+                            HoTen = hocVien.HoTen,
+                            NgaySinh = hocVien.NgaySinh,
+                            SDT = hocVien.SDT,
+                            TaiKhoanVi = hocVien.TaiKhoanVi
+                        });
+                    }
+                }
+
+                // Trả về thông tin cơ bản cho các vai trò khác
                 return Ok(new {
                     TaiKhoanID = taiKhoan.TaiKhoanID,
                     Email = taiKhoan.Email,

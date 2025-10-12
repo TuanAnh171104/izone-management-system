@@ -33,5 +33,14 @@ namespace IZONE.Infrastructure.Repositories
             return await _context.ViHocViens
                 .FirstOrDefaultAsync(v => v.HocVienID == hocVienId);
         }
+
+        public async Task<IReadOnlyList<HocVien>> GetByLopIdAsync(int lopId)
+        {
+            return await _context.DangKyLops
+                .Where(dk => dk.LopID == lopId && dk.TrangThaiDangKy == "DangHoc")
+                .Include(dk => dk.HocVien)
+                .Select(dk => dk.HocVien)
+                .ToListAsync();
+        }
     }
 }

@@ -26,18 +26,24 @@ const Login: React.FC = () => {
     setLoading(true);
 
     try {
+      console.log('🔐 Bắt đầu đăng nhập với:', formData);
       const response = await taiKhoanService.login(formData);
-      
+      console.log('✅ Đăng nhập thành công:', response);
+
       // Store token and user info
       localStorage.setItem('authToken', response.token);
       localStorage.setItem('userInfo', JSON.stringify(response.user));
 
+      console.log('💾 Đã lưu thông tin user vào localStorage:', response.user);
+
       // Redirect based on user role with page reload
       switch (response.user.vaiTro) {
         case 'Admin':
+          console.log('🔄 Chuyển hướng đến trang admin');
           window.location.href = '/admin';
           break;
         case 'GiangVien':
+          console.log('🔄 Chuyển hướng đến trang giảng viên, thông tin user:', response.user);
           window.location.href = '/lecturer';
           break;
         case 'HocVien':
@@ -47,7 +53,24 @@ const Login: React.FC = () => {
           window.location.href = '/';
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
+      console.error('❌ Lỗi đăng nhập:', err);
+      console.error('❌ Chi tiết lỗi:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status
+      });
+
+      let errorMessage = 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.';
+
+      if (err.response?.status === 401) {
+        errorMessage = 'Email hoặc mật khẩu không đúng. Vui lòng thử lại.';
+      } else if (err.response?.status === 500) {
+        errorMessage = 'Lỗi máy chủ. Vui lòng thử lại sau hoặc liên hệ quản trị viên.';
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

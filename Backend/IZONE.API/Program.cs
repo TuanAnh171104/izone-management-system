@@ -16,7 +16,12 @@ using IZONE.Core.Interfaces;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.MaxDepth = 64;
+    });
 
 // Add DbContext
 builder.Services.AddDbContext<IZONEDbContext>(options =>
@@ -66,22 +71,22 @@ builder.Services.AddCors(options =>
             .AllowCredentials());
 });
 
-// Add Authentication (temporarily disabled for debugging)
-// builder.Services.AddAuthentication(options =>
-// {
-//     options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-// })
-// .AddJwtBearer(options =>
-// {
-//     options.TokenValidationParameters = new TokenValidationParameters
-//     {
-//         ValidateIssuer = false,
-//         ValidateAudience = false,
-//         ValidateLifetime = true,
-//         ValidateIssuerSigningKey = true,
-//         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("your-secret-key-here"))
-//     };
-// });
+// Add Authentication
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = false,
+        ValidateAudience = false,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("your-secret-key-here"))
+    };
+});
 
 // Add Swagger
 builder.Services.AddEndpointsApiExplorer();
@@ -106,8 +111,8 @@ app.UseRouting();
 
 app.UseCors("AllowReactApp");
 
-// app.UseAuthentication();
-// app.UseAuthorization();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

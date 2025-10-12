@@ -44,10 +44,10 @@ namespace IZONE.Core.Models
 
         // Navigation properties
         [ForeignKey("HocVienID")]
-        public virtual HocVien HocVien { get; set; } = null!;
+        public virtual HocVien? HocVien { get; set; }
 
         [ForeignKey("LopID")]
-        public virtual LopHoc LopHoc { get; set; } = null!;
+        public virtual LopHoc? LopHoc { get; set; }
 
         public virtual ICollection<ThanhToan> ThanhToans { get; set; }
         public virtual ICollection<BaoLuu> BaoLuus { get; set; }

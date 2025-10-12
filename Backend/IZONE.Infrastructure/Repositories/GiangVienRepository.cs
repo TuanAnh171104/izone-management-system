@@ -21,8 +21,32 @@ namespace IZONE.Infrastructure.Repositories
 
     public async Task<GiangVien> GetByEmailAsync(string email)
     {
-        return await _context.GiangViens
-            .FirstOrDefaultAsync(x => x.TaiKhoan != null && x.TaiKhoan.Email == email);
+        // Tìm tài khoản theo email trước
+        var taiKhoan = await _context.TaiKhoans
+            .FirstOrDefaultAsync(t => t.Email == email && t.VaiTro == "GiangVien");
+
+        if (taiKhoan == null)
+        {
+            Console.WriteLine($"Không tìm thấy tài khoản với email: {email}");
+            return null;
+        }
+
+        Console.WriteLine($"Tìm thấy tài khoản: ID={taiKhoan.TaiKhoanID}, Email={taiKhoan.Email}");
+
+        // Tìm giảng viên theo TaiKhoanID
+        var giangVien = await _context.GiangViens
+            .FirstOrDefaultAsync(gv => gv.TaiKhoanID == taiKhoan.TaiKhoanID);
+
+        if (giangVien == null)
+        {
+            Console.WriteLine($"Không tìm thấy giảng viên với TaiKhoanID: {taiKhoan.TaiKhoanID}");
+        }
+        else
+        {
+            Console.WriteLine($"Tìm thấy giảng viên: ID={giangVien.GiangVienID}, HoTen={giangVien.HoTen}");
+        }
+
+        return giangVien;
     }
 
     public async Task<IReadOnlyList<GiangVien>> GetGiangViensByChuyenMonAsync(string chuyenMon)

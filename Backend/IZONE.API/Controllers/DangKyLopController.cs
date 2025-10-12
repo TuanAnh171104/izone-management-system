@@ -43,8 +43,15 @@ namespace IZONE.API.Controllers
         [HttpGet("lop/{lopId}")]
         public async Task<ActionResult<IEnumerable<DangKyLop>>> GetByLopId(int lopId)
         {
-            var dangKyLops = await _dangKyLopRepository.GetByLopIdAsync(lopId);
-            return Ok(dangKyLops);
+            try
+            {
+                var dangKyLops = await _dangKyLopRepository.GetByLopIdAsync(lopId);
+                return Ok(dangKyLops);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
         }
 
         [HttpGet("trang-thai/{trangThai}")]

@@ -330,14 +330,37 @@ const AdminKhoaHocList: React.FC = () => {
               className="btn btn-primary"
               style={{
                 padding: '8px 16px',
-                backgroundColor: '#007bff',
-                color: 'red',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer'
+                background: 'white',
+                color: '#dc2626',
+                border: '2px solid #dc2626',
+                borderRadius: '15px',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '14px',
+                boxShadow: '0 4px 15px rgba(220, 38, 38, 0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                justifyContent: 'center',
+                whiteSpace: 'nowrap',
+                minWidth: '120px',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)';
+                e.currentTarget.style.color = 'white';
+                e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+                e.currentTarget.style.boxShadow = '0 8px 25px rgba(220, 38, 38, 0.3)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = 'white';
+                e.currentTarget.style.color = '#dc2626';
+                e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                e.currentTarget.style.boxShadow = '0 4px 15px rgba(220, 38, 38, 0.2)';
               }}
             >
-              ➕ Thêm khóa học mới
+              <i className="fas fa-plus"></i>
+              <span>Thêm khóa học mới</span>
             </button>
           )}
           <div className="search-container">

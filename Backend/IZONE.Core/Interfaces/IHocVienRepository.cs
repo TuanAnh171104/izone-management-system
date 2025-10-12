@@ -8,6 +8,7 @@ namespace IZONE.Core.Interfaces
     {
         Task<HocVien> GetByEmailAsync(string email);
         Task<IReadOnlyList<HocVien>> GetHocViensByLopHocAsync(int lopId);
+        Task<IReadOnlyList<HocVien>> GetByLopIdAsync(int lopId);
         Task<ViHocVien> GetViHocVienAsync(int hocVienId);
     }
 }

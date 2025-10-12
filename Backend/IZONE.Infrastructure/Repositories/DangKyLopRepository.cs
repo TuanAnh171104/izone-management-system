@@ -14,8 +14,6 @@ namespace IZONE.Infrastructure.Repositories
         public async Task<IEnumerable<DangKyLop>> GetByHocVienIdAsync(int hocVienId)
         {
             return await _context.DangKyLops
-                .Include(dk => dk.LopHoc)
-                .Include(dk => dk.HocVien)
                 .Where(dk => dk.HocVienID == hocVienId)
                 .ToListAsync();
         }
@@ -23,8 +21,6 @@ namespace IZONE.Infrastructure.Repositories
         public async Task<IEnumerable<DangKyLop>> GetByLopIdAsync(int lopId)
         {
             return await _context.DangKyLops
-                .Include(dk => dk.HocVien)
-                .Include(dk => dk.LopHoc)
                 .Where(dk => dk.LopID == lopId)
                 .ToListAsync();
         }

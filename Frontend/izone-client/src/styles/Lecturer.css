@@ -1,0 +1,113 @@
+.lecturer-layout { display: flex; min-height: calc(100vh - 160px); }
+.lecturer-sidebar { width: 240px; background: #ffffff; border-right: 1px solid #e5e7eb; padding: 20px; display: flex; flex-direction: column; }
+.lecturer-brand { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 20px; }
+.lecturer-brand img { height: 28px; }
+.lecturer-nav { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.nav-item { padding: 10px 12px; border-radius: 8px; color: #374151; text-decoration: none; }
+.nav-item:hover { background: #f3f4f6; }
+.nav-item.active { background: #dc2626; color: #fff; }
+.lecturer-content { flex: 1; padding: 20px; background: #fafafa; }
+
+/* User Info Section */
+.lecturer-user-info {
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.user-details {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #dc2626;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 16px;
+}
+
+.user-text {
+  flex: 1;
+}
+
+.user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 2px;
+}
+
+.user-role {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.btn-logout-sidebar {
+  width: 100%;
+  padding: 8px 12px;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.btn-logout-sidebar:hover {
+  background: #b91c1c;
+}
+
+/* Lecturer specific styles */
+.lecturer-info-card {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  color: white;
+}
+
+.lecturer-info-card h3 {
+  color: white !important;
+}
+
+.lecturer-info-card strong {
+  color: #ffd700;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .lecturer-layout {
+    flex-direction: column;
+  }
+
+  .lecturer-sidebar {
+    width: 100%;
+    order: 2;
+    padding: 15px;
+  }
+
+  .lecturer-content {
+    order: 1;
+    padding: 15px;
+  }
+
+  .lecturer-nav {
+    flex-direction: row;
+    justify-content: space-around;
+  }
+
+  .nav-item {
+    flex: 1;
+    text-align: center;
+  }
+}

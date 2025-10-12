@@ -366,5 +366,114 @@ namespace IZONE.Infrastructure.Repositories
             return await _context.DangKyLops
                 .CountAsync(dk => dk.LopID == lopId && dk.TrangThaiDangKy == "DangHoc");
         }
+
+        public async Task<IReadOnlyList<LopHoc>> GetByGiangVienIdAsync(int giangVienId)
+        {
+            try
+            {
+                return await _context.LopHocs
+                    .Where(l => l.GiangVienID == giangVienId)
+                    .Include(l => l.KhoaHoc)
+                    .Include(l => l.DiaDiem)
+                    .Include(l => l.DangKyLops)
+                    .Include(l => l.BuoiHocs)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                // Nếu có lỗi với Entity Framework, thử truy vấn raw SQL
+                var sql = @"
+                    SELECT l.LopID, l.KhoaHocID, l.GiangVienID, l.DiaDiemID,
+                           l.NgayBatDau, l.NgayKetThuc, l.CaHoc, l.NgayHocTrongTuan,
+                           l.DonGiaBuoiDay, l.ThoiLuongGio, l.SoLuongToiDa, l.TrangThai,
+                           k.KhoaHocID as KhoaHoc_KhoaHocID, k.TenKhoaHoc, k.SoBuoi, k.HocPhi, k.DonGiaTaiLieu,
+                           d.DiaDiemID as DiaDiem_DiaDiemID, d.TenCoSo, d.DiaChi, d.SucChua
+                    FROM LopHoc l
+                    LEFT JOIN KhoaHoc k ON l.KhoaHocID = k.KhoaHocID
+                    LEFT JOIN DiaDiem d ON l.DiaDiemID = d.DiaDiemID
+                    WHERE l.GiangVienID = @GiangVienId";
+
+                var lopHocs = new List<LopHoc>();
+                var connection = _context.Database.GetDbConnection();
+
+                try
+                {
+                    await connection.OpenAsync();
+                    using (var command = connection.CreateCommand())
+                    {
+                        command.CommandText = sql;
+                        command.CommandType = System.Data.CommandType.Text;
+                        command.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@GiangVienId", giangVienId));
+
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            var lopHocDict = new Dictionary<int, LopHoc>();
+
+                            while (await reader.ReadAsync())
+                            {
+                                var lopId = reader.GetInt32(0);
+
+                                if (!lopHocDict.TryGetValue(lopId, out var lopHoc))
+                                {
+                                    lopHoc = new LopHoc
+                                    {
+                                        LopID = lopId,
+                                        KhoaHocID = reader.GetInt32(1),
+                                        GiangVienID = reader.GetInt32(2),
+                                        DiaDiemID = reader.IsDBNull(3) ? null : (int?)reader.GetInt32(3),
+                                        NgayBatDau = reader.GetDateTime(4),
+                                        NgayKetThuc = reader.IsDBNull(5) ? null : (DateTime?)reader.GetDateTime(5),
+                                        CaHoc = reader.IsDBNull(6) ? string.Empty : reader.GetString(6),
+                                        NgayHocTrongTuan = reader.IsDBNull(7) ? string.Empty : reader.GetString(7),
+                                        DonGiaBuoiDay = reader.IsDBNull(8) ? 0 : reader.GetDecimal(8),
+                                        ThoiLuongGio = reader.IsDBNull(9) ? 1.5m : reader.GetDecimal(9),
+                                        SoLuongToiDa = reader.IsDBNull(10) ? 0 : reader.GetInt32(10),
+                                        TrangThai = reader.IsDBNull(11) ? "ChuaBatDau" : reader.GetString(11)
+                                    };
+
+                                    // Set navigation properties
+                                    if (!reader.IsDBNull(12))
+                                    {
+                                        lopHoc.KhoaHoc = new KhoaHoc
+                                        {
+                                            KhoaHocID = reader.GetInt32(12),
+                                            TenKhoaHoc = reader.IsDBNull(13) ? string.Empty : reader.GetString(13),
+                                            SoBuoi = reader.IsDBNull(14) ? 0 : reader.GetInt32(14),
+                                            HocPhi = reader.IsDBNull(15) ? 0 : reader.GetDecimal(15),
+                                            DonGiaTaiLieu = reader.IsDBNull(16) ? 0 : reader.GetDecimal(16)
+                                        };
+                                    }
+
+                                    if (!reader.IsDBNull(17))
+                                    {
+                                        lopHoc.DiaDiem = new DiaDiem
+                                        {
+                                            DiaDiemID = reader.GetInt32(17),
+                                            TenCoSo = reader.IsDBNull(18) ? string.Empty : reader.GetString(18),
+                                            DiaChi = reader.IsDBNull(19) ? string.Empty : reader.GetString(19),
+                                            SucChua = reader.IsDBNull(20) ? null : (int?)reader.GetInt32(20)
+                                        };
+                                    }
+
+                                    lopHocDict[lopId] = lopHoc;
+                                    lopHocs.Add(lopHoc);
+                                }
+                            }
+                        }
+                    }
+
+                    return lopHocs;
+                }
+                catch (Exception rawEx)
+                {
+                    Console.WriteLine($"Lỗi khi truy vấn raw SQL: {rawEx.Message}");
+                    return new List<LopHoc>();
+                }
+                finally
+                {
+                    await connection.CloseAsync();
+                }
+            }
+        }
     }
 }

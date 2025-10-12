@@ -15,15 +15,7 @@ namespace IZONE.Infrastructure.Repositories
         {
             var thongBaos = new List<ThongBao>();
 
-            // Lấy thông báo cá nhân gửi trực tiếp cho người này
-            var personalThongBaos = await _context.ThongBao
-                .Where(tb => tb.NguoiNhanID == nguoiNhanId)
-                .OrderByDescending(tb => tb.NgayGui)
-                .ToListAsync();
-
-            thongBaos.AddRange(personalThongBaos);
-
-            // Nếu là giảng viên, lấy thêm thông báo của các lớp mà họ dạy
+            // Nếu là giảng viên, lấy thông báo của các lớp mà họ dạy
             var giangVien = await _context.GiangViens
                 .FirstOrDefaultAsync(gv => gv.GiangVienID == nguoiNhanId);
 
@@ -46,6 +38,15 @@ namespace IZONE.Infrastructure.Repositories
                     thongBaos.AddRange(classThongBaos);
                 }
             }
+
+            // Chỉ lấy thông báo cá nhân nếu thực sự gửi riêng cho giảng viên (không phải thông báo lớp học)
+            var personalThongBaos = await _context.ThongBao
+                .Where(tb => tb.NguoiNhanID == nguoiNhanId &&
+                            (tb.LoaiNguoiNhan != "LopHoc" || tb.LoaiNguoiNhan == null))
+                .OrderByDescending(tb => tb.NgayGui)
+                .ToListAsync();
+
+            thongBaos.AddRange(personalThongBaos);
 
             // Sắp xếp theo thời gian giảm dần
             return thongBaos.OrderByDescending(tb => tb.NgayGui);
