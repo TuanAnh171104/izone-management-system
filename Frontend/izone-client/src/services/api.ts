@@ -855,6 +855,53 @@ export const lopHocService = {
       throw error;
     }
   },
+
+  // Get students with stats for a class (optimized endpoint)
+  getStudentsWithStats: async (lopId: number): Promise<{
+    lopId: number;
+    tenKhoaHoc: string;
+    tongSoBuoi: number;
+    students: Array<{
+      dangKyID: number;
+      hocVienID: number;
+      lopID: number;
+      ngayDangKy: string;
+      trangThaiDangKy: string;
+      trangThaiThanhToan: string;
+      hoTen: string;
+      email?: string;
+      soDienThoai?: string;
+      diemTrungBinh: number;
+      tiLeDiemDanh: number;
+      soBuoiDaHoc: number;
+      tongSoBuoi: number;
+    }>;
+    summary: {
+      totalStudents: number;
+      averageAttendanceRate: number;
+      averageGrade: number;
+    };
+  }> => {
+    try {
+      console.log('🔄 Đang gọi API lấy học viên với thống kê cho lớp:', lopId);
+
+      const response = await apiClient.get(`/LopHoc/${lopId}/students-with-stats`);
+      const data = response.data;
+
+      console.log('✅ API Response for students with stats:', data);
+
+      return data;
+    } catch (error: any) {
+      console.error('❌ Lỗi khi lấy dữ liệu học viên với thống kê:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        config: error.config
+      });
+      throw error;
+    }
+  },
 };
 
 // GiangVien Service

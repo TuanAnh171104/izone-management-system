@@ -11,9 +11,11 @@ namespace IZONE.Core.Models
         [Column("DiemDanhID")]
         public int DiemDanhID { get; set; }
 
+        [Required(ErrorMessage = "BuoiHocID là bắt buộc")]
         [Column("BuoiHocID")]
         public int BuoiHocID { get; set; }
 
+        [Required(ErrorMessage = "HocVienID là bắt buộc")]
         [Column("HocVienID")]
         public int HocVienID { get; set; }
 
@@ -23,11 +25,11 @@ namespace IZONE.Core.Models
         [Column("GhiChu")]
         public string? GhiChu { get; set; }
 
-        // Navigation properties
+        // Navigation properties - không bắt buộc khi tạo mới (chỉ load khi cần thiết)
         [ForeignKey("BuoiHocID")]
-        public virtual BuoiHoc BuoiHoc { get; set; } = null!;
+        public virtual BuoiHoc? BuoiHoc { get; set; }
 
         [ForeignKey("HocVienID")]
-        public virtual HocVien HocVien { get; set; } = null!;
+        public virtual HocVien? HocVien { get; set; }
     }
 }

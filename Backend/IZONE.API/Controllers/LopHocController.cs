@@ -1410,5 +1410,115 @@ namespace IZONE.API.Controllers
                 return false;
             }).ToList();
         }
+
+        // GET: api/LopHoc/{lopId}/students-with-stats
+        [HttpGet("{lopId}/students-with-stats")]
+        public async Task<ActionResult<object>> GetStudentsWithStats(int lopId)
+        {
+            try
+            {
+                _logger.LogInformation("=== BẮT ĐẦU LẤY DỮ LIỆU HỌC VIÊN VỚI THỐNG KÊ CHO LỚP {LopID} ===", lopId);
+
+                // Kiểm tra lớp học có tồn tại không
+                var lopHoc = await _context.LopHocs
+                    .Include(l => l.KhoaHoc)
+                    .FirstOrDefaultAsync(l => l.LopID == lopId);
+
+                if (lopHoc == null)
+                {
+                    _logger.LogWarning("Không tìm thấy lớp học với ID: {LopID}", lopId);
+                    return NotFound(new { message = $"Không tìm thấy lớp học với ID {lopId}" });
+                }
+
+                // Lấy danh sách buổi học để tính tổng số buổi
+                var tongSoBuoi = await _context.BuoiHocs.CountAsync(b => b.LopID == lopId);
+
+                // Query tổng hợp để lấy toàn bộ dữ liệu cần thiết trong 1 lần truy vấn
+                var studentsWithStats = await (
+                    from dk in _context.DangKyLops
+                    join hv in _context.HocViens on dk.HocVienID equals hv.HocVienID
+                    where dk.LopID == lopId && dk.TrangThaiDangKy == "DangHoc"
+                    select new
+                    {
+                        dangKyID = dk.DangKyID,
+                        hocVienID = dk.HocVienID,
+                        lopID = dk.LopID,
+                        ngayDangKy = dk.NgayDangKy,
+                        trangThaiDangKy = dk.TrangThaiDangKy,
+                        trangThaiThanhToan = dk.TrangThaiThanhToan,
+
+                        // Thông tin học viên
+                        hoTen = hv.HoTen,
+                        email = hv.Email,
+                        soDienThoai = hv.SDT,
+
+                        // Tính điểm trung bình từ DiemSo
+                        diemTrungBinh = (
+                            from ds in _context.DiemSos
+                            where ds.HocVienID == hv.HocVienID && ds.LopID == lopId
+                            select ds.Diem
+                        ).DefaultIfEmpty(0).Average(),
+
+                        // Tính tỷ lệ điểm danh từ DiemDanh
+                        tiLeDiemDanh = (
+                            from dd in _context.DiemDanhs
+                            join bh in _context.BuoiHocs on dd.BuoiHocID equals bh.BuoiHocID
+                            where dd.HocVienID == hv.HocVienID && bh.LopID == lopId && dd.CoMat
+                            select dd
+                        ).Count() * 100.0 / tongSoBuoi
+                    }
+                ).ToListAsync();
+
+                // Xử lý kết quả để đảm bảo tỷ lệ điểm danh hợp lệ
+                var processedStudents = studentsWithStats.Select(student => new
+                {
+                    dangKyID = student.dangKyID,
+                    hocVienID = student.hocVienID,
+                    lopID = student.lopID,
+                    ngayDangKy = student.ngayDangKy,
+                    trangThaiDangKy = student.trangThaiDangKy,
+                    trangThaiThanhToan = student.trangThaiThanhToan,
+
+                    hoTen = student.hoTen ?? "Chưa cập nhật",
+                    email = student.email,
+                    soDienThoai = student.soDienThoai,
+
+                    diemTrungBinh = Math.Round(student.diemTrungBinh, 1),
+                    tiLeDiemDanh = double.IsNaN(student.tiLeDiemDanh) || double.IsInfinity(student.tiLeDiemDanh) ? 0 : Math.Round(student.tiLeDiemDanh, 1),
+
+                    // Thông tin bổ sung
+                    soBuoiDaHoc = student.diemTrungBinh >= 5 ? tongSoBuoi : 0,
+                    tongSoBuoi = tongSoBuoi
+                }).ToList();
+
+                _logger.LogInformation("Đã lấy thành công dữ liệu của {Count} học viên cho lớp {LopID}", processedStudents.Count, lopId);
+
+                var result = new
+                {
+                    lopId = lopId,
+                    tenKhoaHoc = lopHoc.KhoaHoc?.TenKhoaHoc ?? "Không xác định",
+                    tongSoBuoi = tongSoBuoi,
+                    students = processedStudents,
+                    summary = new
+                    {
+                        totalStudents = processedStudents.Count,
+                        averageAttendanceRate = processedStudents.Any() ? Math.Round(processedStudents.Average(s => s.tiLeDiemDanh), 1) : 0,
+                        averageGrade = processedStudents.Any() ? Math.Round(processedStudents.Average(s => s.diemTrungBinh), 1) : 0
+                    }
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi lấy dữ liệu học viên với thống kê cho lớp {LopID}", lopId);
+                return StatusCode(500, new
+                {
+                    message = "Không thể tải dữ liệu học viên",
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace
+                });
+            }
+        }
     }
 }

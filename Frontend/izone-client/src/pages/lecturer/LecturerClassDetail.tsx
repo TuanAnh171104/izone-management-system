@@ -242,29 +242,7 @@ const AttendanceTab: React.FC<AttendanceTabProps> = ({ lopId, students, buoiHocs
             />
           </div>
 
-          {/* Nút refresh */}
-          {onRefresh && (
-            <div>
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151' }}>
-                <i className="fas fa-sync-alt"></i> Tải lại:
-              </label>
-              <button
-                onClick={onRefresh}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  background: '#6b7280',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '14px'
-                }}
-              >
-                <i className="fas fa-refresh"></i> Tải lại danh sách
-              </button>
-            </div>
-          )}
+
         </div>
 
         {/* Hiển thị số kết quả */}
@@ -600,6 +578,7 @@ interface StudentWithStats extends DangKyLop {
   soBuoiDaHoc: number;
   tongSoBuoi: number;
   tiLeDiemDanh: number;
+  diemTrungBinh: number;
   dangKyID: number;
   ngayDangKy: string;
   trangThaiDangKy: string;
@@ -613,12 +592,27 @@ const LecturerClassDetail: React.FC = () => {
   const [buoiHocs, setBuoiHocs] = useState<BuoiHoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'students' | 'attendance' | 'grades'>('students');
+  const [activeTab, setActiveTab] = useState<'students' | 'attendance' | 'grades' | 'schedule-change'>('students');
 
   // Separate state for attendance tab
   const [buoiHocLoading, setBuoiHocLoading] = useState(false);
   const [buoiHocError, setBuoiHocError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // State for grades tab
+  const [gradesData, setGradesData] = useState<any[]>([]);
+  const [gradesLoading, setGradesLoading] = useState(false);
+  const [gradesError, setGradesError] = useState<string | null>(null);
+
+  // State for schedule-change tab
+  const [scheduleRequests, setScheduleRequests] = useState<any[]>([]);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+
+  // State for students tab refresh
+  const [studentsLoading, setStudentsLoading] = useState(false);
+  const [studentsError, setStudentsError] = useState<string | null>(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -641,6 +635,49 @@ const LecturerClassDetail: React.FC = () => {
       loadBuoiHocs();
     }
   }, [activeTab, classInfo, refreshKey]);
+
+  // Load dữ liệu cho grades tab - hiển thị trạng thái phát triển sau
+  useEffect(() => {
+    if (activeTab === 'grades' && classInfo) {
+      setGradesLoading(true);
+      setGradesError(null);
+      // Giả lập thời gian tải
+      setTimeout(() => {
+        setGradesLoading(false);
+      }, 500);
+    }
+  }, [activeTab, classInfo]);
+
+  // Load dữ liệu cho students tab - reload khi chuyển vào tab
+  useEffect(() => {
+    if (activeTab === 'students' && classInfo) {
+      loadStudentsData();
+    }
+  }, [activeTab, classInfo]);
+
+  // Load dữ liệu cho grades tab - hiển thị trạng thái phát triển sau
+  useEffect(() => {
+    if (activeTab === 'grades' && classInfo) {
+      setGradesLoading(true);
+      setGradesError(null);
+      // Giả lập thời gian tải
+      setTimeout(() => {
+        setGradesLoading(false);
+      }, 500);
+    }
+  }, [activeTab, classInfo]);
+
+  // Load dữ liệu cho schedule-change tab - hiển thị trạng thái phát triển sau
+  useEffect(() => {
+    if (activeTab === 'schedule-change' && classInfo) {
+      setScheduleLoading(true);
+      setScheduleError(null);
+      // Giả lập thời gian tải
+      setTimeout(() => {
+        setScheduleLoading(false);
+      }, 500);
+    }
+  }, [activeTab, classInfo]);
 
   const loadBuoiHocs = async () => {
     if (!classInfo) return;
@@ -702,6 +739,136 @@ const LecturerClassDetail: React.FC = () => {
   const handleRefreshBuoiHocs = () => {
     setRefreshKey(prev => prev + 1);
   };
+
+  const loadStudentsData = async () => {
+    if (!classInfo) return;
+
+    setStudentsLoading(true);
+    setStudentsError(null);
+
+    try {
+      const classId = classInfo.lopID;
+      console.log('🔄 [TAB] Đang reload dữ liệu học viên cho lớp:', classId);
+
+      // Sử dụng API endpoint tổng hợp mới để lấy toàn bộ dữ liệu học viên với thống kê
+      try {
+        console.log('🚀 Đang sử dụng API endpoint tổng hợp để lấy dữ liệu học viên...');
+        const studentsData = await lopHocService.getStudentsWithStats(classId);
+        console.log('✅ Dữ liệu học viên từ API tổng hợp:', studentsData);
+
+        // Map dữ liệu từ API tổng hợp sang định dạng StudentWithStats
+        const studentsWithStats: StudentWithStats[] = studentsData.students.map(student => ({
+          dangKyID: student.dangKyID,
+          hocVienID: student.hocVienID,
+          lopID: student.lopID,
+          ngayDangKy: student.ngayDangKy,
+          trangThaiDangKy: student.trangThaiDangKy,
+          trangThaiThanhToan: student.trangThaiThanhToan,
+          hoTen: student.hoTen,
+          email: student.email,
+          soDienThoai: student.soDienThoai,
+          soBuoiDaHoc: student.soBuoiDaHoc,
+          tongSoBuoi: student.tongSoBuoi,
+          tiLeDiemDanh: student.tiLeDiemDanh,
+          diemTrungBinh: student.diemTrungBinh
+        }));
+
+        console.log('✅ Đã xử lý xong dữ liệu học viên:', studentsWithStats.length, 'học viên');
+        setStudents(studentsWithStats);
+
+      } catch (error: any) {
+        console.error('❌ Lỗi khi sử dụng API tổng hợp:', error);
+
+        // Fallback: sử dụng cách cũ nếu API mới không hoạt động
+        console.log('🔄 Thử sử dụng cách cũ để lấy dữ liệu học viên...');
+
+        let dangKyLops: DangKyLop[] = [];
+        try {
+          dangKyLops = await dangKyLopService.getByLopId(classId);
+          console.log('✅ Danh sách đăng ký (fallback):', dangKyLops);
+        } catch (dangKyError: any) {
+          console.warn('⚠️ Không thể lấy danh sách đăng ký (fallback):', dangKyError);
+          dangKyLops = [];
+        }
+
+        // Xử lý dữ liệu học viên với thống kê (cách cũ)
+        const studentsWithStats: StudentWithStats[] = [];
+
+        for (const dangKy of dangKyLops) {
+          try {
+            console.log('🔄 Đang xử lý học viên (fallback):', dangKy.hocVienID);
+
+            // Lấy thông tin học viên
+            let studentInfo: any = null;
+            try {
+              studentInfo = await hocVienService.getById(dangKy.hocVienID);
+              console.log('✅ Thông tin học viên (fallback):', studentInfo);
+            } catch (error: any) {
+              console.warn(`⚠️ Không tìm thấy học viên ${dangKy.hocVienID}, sử dụng dữ liệu mẫu:`, error.message);
+              studentInfo = {
+                hoTen: `Học viên ${dangKy.hocVienID}`,
+                email: `hocvien${dangKy.hocVienID}@example.com`,
+                sdt: `090${dangKy.hocVienID.toString().padStart(7, '1')}`,
+                ngaySinh: null,
+                taiKhoanVi: 0
+              };
+            }
+
+            // Lấy điểm số và tỷ lệ điểm danh (đơn giản hóa)
+            let diemTrungBinh = 0;
+            let tiLeDiemDanh = 0;
+
+            try {
+              const diemSoResponse = await fetch(`http://localhost:5080/api/DiemSo/grades/hoc-vien/${dangKy.hocVienID}/lop/${classId}`);
+              if (diemSoResponse.ok) {
+                const diemSos = await diemSoResponse.json();
+                diemTrungBinh = diemSos.length > 0 ? diemSos[0].diem || 0 : 0;
+              }
+            } catch (error) {
+              console.warn('Không thể lấy điểm số (fallback):', error);
+            }
+
+            try {
+              const diemDanhResponse = await fetch(`http://localhost:5080/api/DiemDanh/attendance-rate/hoc-vien/${dangKy.hocVienID}/lop/${classId}`);
+              if (diemDanhResponse.ok) {
+                tiLeDiemDanh = await diemDanhResponse.json() || 0;
+              }
+            } catch (error) {
+              console.warn('Không thể lấy tỷ lệ điểm danh (fallback):', error);
+            }
+
+            studentsWithStats.push({
+              ...dangKy,
+              hoTen: studentInfo.hoTen || 'Chưa cập nhật',
+              email: studentInfo.email,
+              soDienThoai: studentInfo.sdt,
+              soBuoiDaHoc: diemTrungBinh >= 5 ? classInfo.lopID : 0,
+              tongSoBuoi: classInfo.lopID,
+              tiLeDiemDanh: tiLeDiemDanh,
+              diemTrungBinh: diemTrungBinh
+            });
+
+            console.log('✅ Đã thêm học viên vào danh sách (fallback):', studentInfo.hoTen);
+          } catch (error) {
+            console.error('❌ Lỗi khi lấy thông tin học viên (fallback):', dangKy.hocVienID, error);
+          }
+        }
+
+        console.log('✅ Tổng số học viên (fallback):', studentsWithStats.length);
+        setStudents(studentsWithStats);
+      }
+
+    } catch (error: any) {
+      console.error('❌ Lỗi khi reload dữ liệu học viên:', error);
+      setStudentsError(`Không thể tải dữ liệu học viên: ${error.message}`);
+    } finally {
+      setStudentsLoading(false);
+    }
+  };
+
+
+
+
 
   const fetchClassDetail = async () => {
     try {
@@ -767,161 +934,113 @@ const LecturerClassDetail: React.FC = () => {
         }
       }
 
-      // Lấy danh sách học viên đăng ký lớp học
-      let dangKyLops: DangKyLop[] = [];
+      // Sử dụng API endpoint tổng hợp mới để lấy toàn bộ dữ liệu học viên với thống kê
       try {
-        console.log('🔄 Đang lấy danh sách đăng ký lớp học qua service...');
-        dangKyLops = await dangKyLopService.getByLopId(classId);
-        console.log('✅ Danh sách đăng ký:', dangKyLops);
-      } catch (dangKyError: any) {
-        console.warn('⚠️ Không thể lấy danh sách đăng ký qua service:', dangKyError);
-        console.log('🔄 Thử gọi trực tiếp API...');
+        console.log('🚀 Đang sử dụng API endpoint tổng hợp để lấy dữ liệu học viên...');
+        const studentsData = await lopHocService.getStudentsWithStats(classId);
+        console.log('✅ Dữ liệu học viên từ API tổng hợp:', studentsData);
 
+        // Map dữ liệu từ API tổng hợp sang định dạng StudentWithStats
+        const studentsWithStats: StudentWithStats[] = studentsData.students.map(student => ({
+          dangKyID: student.dangKyID,
+          hocVienID: student.hocVienID,
+          lopID: student.lopID,
+          ngayDangKy: student.ngayDangKy,
+          trangThaiDangKy: student.trangThaiDangKy,
+          trangThaiThanhToan: student.trangThaiThanhToan,
+          hoTen: student.hoTen,
+          email: student.email,
+          soDienThoai: student.soDienThoai,
+          soBuoiDaHoc: student.soBuoiDaHoc,
+          tongSoBuoi: student.tongSoBuoi,
+          tiLeDiemDanh: student.tiLeDiemDanh,
+          diemTrungBinh: student.diemTrungBinh
+        }));
+
+        console.log('✅ Đã xử lý xong dữ liệu học viên:', studentsWithStats.length, 'học viên');
+        setStudents(studentsWithStats);
+
+      } catch (error: any) {
+        console.error('❌ Lỗi khi sử dụng API tổng hợp:', error);
+
+        // Fallback: sử dụng cách cũ nếu API mới không hoạt động
+        console.log('🔄 Thử sử dụng cách cũ để lấy dữ liệu học viên...');
+
+        let dangKyLops: DangKyLop[] = [];
         try {
-          const studentsResponse = await fetch(`http://localhost:5080/api/DangKyLop/lop/${classId}`);
-          if (studentsResponse.ok) {
-            dangKyLops = await studentsResponse.json();
-            console.log('✅ Danh sách đăng ký (direct call):', dangKyLops);
-          } else {
-            console.warn(`⚠️ DangKyLop API lỗi ${studentsResponse.status}, sử dụng dữ liệu mẫu`);
-          }
-        } catch (directCallError) {
-          console.warn('⚠️ Không thể lấy danh sách đăng ký (direct call):', directCallError);
+          dangKyLops = await dangKyLopService.getByLopId(classId);
+          console.log('✅ Danh sách đăng ký (fallback):', dangKyLops);
+        } catch (dangKyError: any) {
+          console.warn('⚠️ Không thể lấy danh sách đăng ký (fallback):', dangKyError);
+          dangKyLops = [];
         }
-      }
 
-      // // Nếu không có dữ liệu từ API, sử dụng dữ liệu mẫu
-      // if (dangKyLops.length === 0) {
-      //   console.log('📝 Sử dụng dữ liệu mẫu cho học viên');
-      //   dangKyLops = [
-      //     {
-      //       dangKyID: 1,
-      //       hocVienID: 1,
-      //       lopID: classId,
-      //       ngayDangKy: new Date().toISOString(),
-      //       trangThaiDangKy: 'DangHoc',
-      //       trangThaiThanhToan: 'DaThanhToan'
-      //     },
-      //     {
-      //       dangKyID: 2,
-      //       hocVienID: 2,
-      //       lopID: classId,
-      //       ngayDangKy: new Date().toISOString(),
-      //       trangThaiDangKy: 'DangHoc',
-      //       trangThaiThanhToan: 'DaThanhToan'
-      //     }
-      //   ];
-      // }
+        // Xử lý dữ liệu học viên với thống kê (cách cũ)
+        const studentsWithStats: StudentWithStats[] = [];
 
-      // Xử lý dữ liệu học viên với thống kê
-      const studentsWithStats: StudentWithStats[] = [];
-
-      for (const dangKy of dangKyLops) {
-        try {
-          console.log('🔄 Đang xử lý học viên:', dangKy.hocVienID);
-
-          // Lấy thông tin học viên
-          let studentInfo: any = null;
+        for (const dangKy of dangKyLops) {
           try {
-            // Sử dụng hocVienService thay vì fetch trực tiếp
-            studentInfo = await hocVienService.getById(dangKy.hocVienID);
-            console.log('✅ Thông tin học viên:', studentInfo);
-          } catch (error: any) {
-            console.warn(`⚠️ Không tìm thấy học viên ${dangKy.hocVienID}, sử dụng dữ liệu mẫu:`, error.message);
+            console.log('🔄 Đang xử lý học viên (fallback):', dangKy.hocVienID);
 
-            // Tạo dữ liệu mẫu với thông tin hợp lý
-            studentInfo = {
-              hoTen: `Học viên ${dangKy.hocVienID}`,
-              email: `hocvien${dangKy.hocVienID}@example.com`,
-              sdt: `090${dangKy.hocVienID.toString().padStart(7, '1')}`,
-              ngaySinh: null,
-              taiKhoanVi: 0
-            };
-            console.log('📝 Sử dụng dữ liệu mẫu cho học viên:', studentInfo.hoTen);
-          }
-
-          // Lấy điểm thi của học viên trong lớp này
-          let diemGiuaKy = 0;
-          let diemCuoiKy = 0;
-          let diemTrungBinh = 0;
-
-          try {
-            // Lấy tất cả điểm của học viên trong lớp
-            const diemSoResponse = await fetch(`http://localhost:5080/api/DiemSo/grades/hoc-vien/${dangKy.hocVienID}/lop/${classId}`);
-            if (diemSoResponse.ok) {
-              const diemSos = await diemSoResponse.json();
-              console.log('✅ Điểm số học viên:', diemSos);
-
-              // Tìm điểm giữa kỳ và cuối kỳ
-              const diemGiuaKyObj = diemSos.find((d: any) => d.loaiDiem?.toLowerCase().includes('giữa kỳ') || d.loaiDiem?.toLowerCase().includes('giua ky'));
-              const diemCuoiKyObj = diemSos.find((d: any) => d.loaiDiem?.toLowerCase().includes('cuối kỳ') || d.loaiDiem?.toLowerCase().includes('cuoi ky'));
-
-              diemGiuaKy = diemGiuaKyObj ? parseFloat(diemGiuaKyObj.diem) : 0;
-              diemCuoiKy = diemCuoiKyObj ? parseFloat(diemCuoiKyObj.diem) : 0;
-
-              // Tính điểm trung bình theo công thức: (giữa kỳ + cuối kỳ * 2) / 3
-              if (diemGiuaKy > 0 || diemCuoiKy > 0) {
-                diemTrungBinh = (diemGiuaKy + diemCuoiKy * 2) / 3;
-              }
+            // Lấy thông tin học viên
+            let studentInfo: any = null;
+            try {
+              studentInfo = await hocVienService.getById(dangKy.hocVienID);
+              console.log('✅ Thông tin học viên (fallback):', studentInfo);
+            } catch (error: any) {
+              console.warn(`⚠️ Không tìm thấy học viên ${dangKy.hocVienID}, sử dụng dữ liệu mẫu:`, error.message);
+              studentInfo = {
+                hoTen: `Học viên ${dangKy.hocVienID}`,
+                email: `hocvien${dangKy.hocVienID}@example.com`,
+                sdt: `090${dangKy.hocVienID.toString().padStart(7, '1')}`,
+                ngaySinh: null,
+                taiKhoanVi: 0
+              };
             }
-          } catch (error) {
-            console.warn('Không thể lấy điểm số:', error);
-          }
 
-          // Lấy tỷ lệ điểm danh thực tế từ DiemDanh API
-          let tiLeDiemDanh = 0;
-          try {
-            const diemDanhResponse = await fetch(`http://localhost:5080/api/DiemDanh/attendance-rate/hoc-vien/${dangKy.hocVienID}/lop/${classId}`);
-            if (diemDanhResponse.ok) {
-              const rawRate = await diemDanhResponse.json();
-              console.log('🔍 Raw diem danh rate:', rawRate, typeof rawRate);
+            // Lấy điểm số và tỷ lệ điểm danh (đơn giản hóa)
+            let diemTrungBinh = 0;
+            let tiLeDiemDanh = 0;
 
-              // Xử lý dữ liệu từ API - có thể trả về số thập phân hoặc phần trăm
-              if (typeof rawRate === 'number') {
-                if (rawRate <= 1) {
-                  // API trả về tỷ lệ thập phân (0.85)
-                  tiLeDiemDanh = rawRate * 100;
-                } else if (rawRate <= 100) {
-                  // API trả về tỷ lệ phần trăm (85)
-                  tiLeDiemDanh = rawRate;
-                } else {
-                  // API trả về dữ liệu bất thường (> 100)
-                  console.warn('⚠️ API trả về tỷ lệ điểm danh bất thường:', rawRate);
-                  tiLeDiemDanh = Math.min(rawRate / 100, 100); // Chia 100 và giới hạn max 100%
-                }
-              } else {
-                console.warn('⚠️ API trả về dữ liệu không phải số:', rawRate);
-                tiLeDiemDanh = 0;
+            try {
+              const diemSoResponse = await fetch(`http://localhost:5080/api/DiemSo/grades/hoc-vien/${dangKy.hocVienID}/lop/${classId}`);
+              if (diemSoResponse.ok) {
+                const diemSos = await diemSoResponse.json();
+                diemTrungBinh = diemSos.length > 0 ? diemSos[0].diem || 0 : 0;
               }
-
-              console.log('✅ Tỷ lệ điểm danh sau xử lý:', tiLeDiemDanh);
-            } else {
-              console.warn(`⚠️ Không thể lấy tỷ lệ điểm danh cho học viên ${dangKy.hocVienID}`);
-              tiLeDiemDanh = 0;
+            } catch (error) {
+              console.warn('Không thể lấy điểm số (fallback):', error);
             }
+
+            try {
+              const diemDanhResponse = await fetch(`http://localhost:5080/api/DiemDanh/attendance-rate/hoc-vien/${dangKy.hocVienID}/lop/${classId}`);
+              if (diemDanhResponse.ok) {
+                tiLeDiemDanh = await diemDanhResponse.json() || 0;
+              }
+            } catch (error) {
+              console.warn('Không thể lấy tỷ lệ điểm danh (fallback):', error);
+            }
+
+            studentsWithStats.push({
+              ...dangKy,
+              hoTen: studentInfo.hoTen || 'Chưa cập nhật',
+              email: studentInfo.email,
+              soDienThoai: studentInfo.sdt,
+              soBuoiDaHoc: diemTrungBinh >= 5 ? tongSoBuoi : 0,
+              tongSoBuoi: tongSoBuoi,
+              tiLeDiemDanh: tiLeDiemDanh,
+              diemTrungBinh: diemTrungBinh
+            });
+
+            console.log('✅ Đã thêm học viên vào danh sách (fallback):', studentInfo.hoTen);
           } catch (error) {
-            console.warn('Không thể lấy tỷ lệ điểm danh:', error);
-            tiLeDiemDanh = 0;
+            console.error('❌ Lỗi khi lấy thông tin học viên (fallback):', dangKy.hocVienID, error);
           }
-
-          studentsWithStats.push({
-            ...dangKy,
-            hoTen: studentInfo.hoTen || 'Chưa cập nhật',
-            email: studentInfo.email,
-            soDienThoai: studentInfo.sdt,
-            soBuoiDaHoc: diemTrungBinh >= 5 ? tongSoBuoi : 0, // Nếu điểm >= 5 thì coi như hoàn thành tất cả buổi
-            tongSoBuoi: tongSoBuoi,
-            tiLeDiemDanh: tiLeDiemDanh // Tỷ lệ điểm danh dựa trên điểm số
-          });
-
-          console.log('✅ Đã thêm học viên vào danh sách:', studentInfo.hoTen);
-        } catch (error) {
-          console.error('❌ Lỗi khi lấy thông tin học viên:', dangKy.hocVienID, error);
         }
-      }
 
-      console.log('✅ Tổng số học viên:', studentsWithStats.length);
-      setStudents(studentsWithStats);
+        console.log('✅ Tổng số học viên (fallback):', studentsWithStats.length);
+        setStudents(studentsWithStats);
+      }
 
     } catch (error: any) {
       console.error('❌ Lỗi khi tải thông tin lớp học:', error);
@@ -1254,6 +1373,21 @@ const LecturerClassDetail: React.FC = () => {
           >
             <i className="fas fa-graduation-cap"></i> Điểm số
           </button>
+          <button
+            onClick={() => setActiveTab('schedule-change')}
+            style={{
+              flex: 1,
+              padding: '15px 20px',
+              border: 'none',
+              background: activeTab === 'schedule-change' ? '#dc2626' : 'transparent',
+              color: activeTab === 'schedule-change' ? 'white' : '#374151',
+              fontWeight: '600',
+              cursor: 'pointer',
+              borderBottom: activeTab === 'schedule-change' ? '3px solid #b91c1c' : 'none'
+            }}
+          >
+            <i className="fas fa-calendar-alt"></i> Đổi lịch học
+          </button>
         </div>
 
         {/* Tab Content */}
@@ -1317,9 +1451,9 @@ const LecturerClassDetail: React.FC = () => {
                         <div style={{ textAlign: 'right' }}>
                           <div style={{ marginBottom: '8px' }}>
                             <div style={{ fontSize: '18px', fontWeight: '600', color: '#059669' }}>
-                              {((student.tiLeDiemDanh / 20)).toFixed(1)}/10
+                              {student.diemTrungBinh > 0 ? student.diemTrungBinh.toFixed(1) : 'Chưa có'}/10
                             </div>
-                            <div style={{ fontSize: '12px', color: '#6b7280' }}>Điểm</div>
+                            <div style={{ fontSize: '12px', color: '#6b7280' }}>Điểm số</div>
                           </div>
                           <div>
                             <div style={{
@@ -1327,7 +1461,7 @@ const LecturerClassDetail: React.FC = () => {
                               fontWeight: '600',
                               color: student.tiLeDiemDanh >= 80 ? '#059669' : student.tiLeDiemDanh >= 60 ? '#d97706' : '#dc2626'
                             }}>
-                              {student.tiLeDiemDanh}%
+                              {student.tiLeDiemDanh.toFixed(0)}%
                             </div>
                             <div style={{ fontSize: '12px', color: '#6b7280' }}>Tỷ lệ điểm danh</div>
                           </div>
@@ -1345,30 +1479,11 @@ const LecturerClassDetail: React.FC = () => {
 
           {activeTab === 'attendance' && (
             <div>
-              {/* Header với nút refresh */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              {/* Header */}
+              <div style={{ marginBottom: '20px' }}>
                 <h3 style={{ margin: 0, color: '#dc2626' }}>
                   <i className="fas fa-calendar-check"></i> Điểm danh
                 </h3>
-                <button
-                  onClick={handleRefreshBuoiHocs}
-                  disabled={buoiHocLoading}
-                  style={{
-                    padding: '8px 16px',
-                    background: buoiHocLoading ? '#9ca3af' : '#6b7280',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: buoiHocLoading ? 'not-allowed' : 'pointer',
-                    fontSize: '14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  <i className={`fas ${buoiHocLoading ? 'fa-spinner fa-spin' : 'fa-refresh'}`}></i>
-                  {buoiHocLoading ? 'Đang tải...' : 'Tải lại'}
-                </button>
               </div>
 
               {/* Hiển thị lỗi nếu có */}
@@ -1415,14 +1530,377 @@ const LecturerClassDetail: React.FC = () => {
           )}
 
           {activeTab === 'grades' && (
-            <div style={{
-              textAlign: 'center',
-              padding: '40px',
-              color: '#6b7280'
-            }}>
-              <i className="fas fa-graduation-cap" style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}></i>
-              <h3 style={{ margin: '0 0 8px 0' }}>Tab điểm số</h3>
-              <p style={{ margin: 0 }}>Chức năng điểm số sẽ được triển khai ở giai đoạn tiếp theo.</p>
+            <div>
+              {/* Header với nút refresh */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '20px'
+              }}>
+                <h3 style={{ margin: 0, color: '#dc2626' }}>
+                  <i className="fas fa-graduation-cap"></i> Điểm số
+                </h3>
+                <button
+                  onClick={() => {
+                    setGradesLoading(true);
+                    setGradesError(null);
+                    setTimeout(() => {
+                      setGradesLoading(false);
+                    }, 500);
+                  }}
+                  disabled={gradesLoading}
+                  style={{
+                    padding: '8px 16px',
+                    background: gradesLoading ? '#9ca3af' : '#6b7280',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: gradesLoading ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <i className={`fas ${gradesLoading ? 'fa-spinner fa-spin' : 'fa-refresh'}`}></i>
+                  {gradesLoading ? 'Đang tải...' : 'Tải lại'}
+                </button>
+              </div>
+
+              {/* Hiển thị lỗi nếu có */}
+              {gradesError && (
+                <div style={{
+                  backgroundColor: '#fee2e2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  marginBottom: '20px',
+                  color: '#dc2626',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <i className="fas fa-exclamation-triangle"></i>
+                  <span>{gradesError}</span>
+                </div>
+              )}
+
+              {/* Loading state */}
+              {gradesLoading ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '40px',
+                  color: '#6b7280'
+                }}>
+                  <i className="fas fa-spinner fa-spin" style={{ fontSize: '24px', marginBottom: '16px' }}></i>
+                  <h3 style={{ margin: '0 0 8px 0' }}>Đang tải dữ liệu điểm số...</h3>
+                  <p style={{ margin: 0 }}>Vui lòng đợi trong giây lát.</p>
+                </div>
+              ) : gradesData.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '40px',
+                  color: '#6b7280'
+                }}>
+                  <i className="fas fa-graduation-cap" style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}></i>
+                  <h3 style={{ margin: '0 0 8px 0' }}>Chưa có dữ liệu điểm số</h3>
+                  <p style={{ margin: 0 }}>Điểm số sẽ xuất hiện ở đây khi được nhập vào hệ thống.</p>
+                </div>
+              ) : (
+                <div>
+                  {/* Thống kê tổng quan điểm số */}
+                  <div style={{
+                    background: '#f9fafb',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    padding: '20px',
+                    marginBottom: '20px'
+                  }}>
+                    <h4 style={{ margin: '0 0 15px 0', color: '#374151' }}>
+                      <i className="fas fa-chart-bar"></i> Thống kê điểm số:
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '24px', fontWeight: '600', color: '#059669' }}>
+                          {gradesData.filter(g => g.diem >= 8).length}
+                        </div>
+                        <div style={{ fontSize: '14px', color: '#6b7280' }}>Điểm giỏi (≥8)</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '24px', fontWeight: '600', color: '#d97706' }}>
+                          {gradesData.filter(g => g.diem >= 6.5 && g.diem < 8).length}
+                        </div>
+                        <div style={{ fontSize: '14px', color: '#6b7280' }}>Điểm khá (6.5-7.9)</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontSize: '24px', fontWeight: '600', color: '#dc2626' }}>
+                          {gradesData.filter(g => g.diem < 6.5).length}
+                        </div>
+                        <div style={{ fontSize: '14px', color: '#6b7280' }}>Điểm dưới khá ()</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Danh sách điểm số chi tiết */}
+                  <div style={{ display: 'grid', gap: '10px' }}>
+                    {gradesData.map((grade, index) => (
+                      <div key={index} style={{
+                        background: 'white',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        padding: '15px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                          <div style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '50%',
+                            background: '#dc2626',
+                            color: 'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: '600',
+                            fontSize: '16px'
+                          }}>
+                            {index + 1}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: '600', color: '#1f2937' }}>
+                              Học viên ID: {grade.hocVienID}
+                            </div>
+                            <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                              Ngày nhập: {new Date(grade.ngayNhapDiem).toLocaleDateString('vi-VN')}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{
+                            fontSize: '24px',
+                            fontWeight: '600',
+                            color: grade.diem >= 8 ? '#059669' : grade.diem >= 6.5 ? '#d97706' : '#dc2626'
+                          }}>
+                            {grade.diem}/10
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                            {grade.diem >= 8 ? 'Giỏi' : grade.diem >= 6.5 ? 'Khá' : 'Trung bình'}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'schedule-change' && (
+            <div>
+              {/* Header với nút refresh */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '20px'
+              }}>
+                <h3 style={{ margin: 0, color: '#dc2626' }}>
+                  <i className="fas fa-calendar-alt"></i> Đổi lịch học
+                </h3>
+                <button
+                  onClick={() => {
+                    setScheduleLoading(true);
+                    setScheduleError(null);
+                    setTimeout(() => {
+                      setScheduleLoading(false);
+                    }, 500);
+                  }}
+                  disabled={scheduleLoading}
+                  style={{
+                    padding: '8px 16px',
+                    background: scheduleLoading ? '#9ca3af' : '#6b7280',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: scheduleLoading ? 'not-allowed' : 'pointer',
+                    fontSize: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <i className={`fas ${scheduleLoading ? 'fa-spinner fa-spin' : 'fa-refresh'}`}></i>
+                  {scheduleLoading ? 'Đang tải...' : 'Tải lại'}
+                </button>
+              </div>
+
+              {/* Hiển thị lỗi nếu có */}
+              {scheduleError && (
+                <div style={{
+                  backgroundColor: '#fee2e2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  marginBottom: '20px',
+                  color: '#dc2626',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <i className="fas fa-exclamation-triangle"></i>
+                  <span>{scheduleError}</span>
+                </div>
+              )}
+
+              {/* Loading state */}
+              {scheduleLoading ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '40px',
+                  color: '#6b7280'
+                }}>
+                  <i className="fas fa-spinner fa-spin" style={{ fontSize: '24px', marginBottom: '16px' }}></i>
+                  <h3 style={{ margin: '0 0 8px 0' }}>Đang tải dữ liệu đổi lịch học...</h3>
+                  <p style={{ margin: 0 }}>Vui lòng đợi trong giây lát.</p>
+                </div>
+              ) : scheduleRequests.length === 0 ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '40px',
+                  color: '#6b7280'
+                }}>
+                  <i className="fas fa-calendar-alt" style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}></i>
+                  <h3 style={{ margin: '0 0 8px 0' }}>Chưa có yêu cầu đổi lịch học</h3>
+                  <p style={{ margin: 0 }}>Yêu cầu đổi lịch học sẽ xuất hiện ở đây khi được tạo trong hệ thống.</p>
+                </div>
+              ) : (
+                <div>
+                  {/* Danh sách yêu cầu đổi lịch học */}
+                  <div style={{ display: 'grid', gap: '10px' }}>
+                    {scheduleRequests.map((request, index) => (
+                      <div key={index} style={{
+                        background: 'white',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '8px',
+                        padding: '15px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                          <div style={{
+                            width: '40px',
+                            height: '40px',
+                            borderRadius: '50%',
+                            background: '#dc2626',
+                            color: 'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: '600',
+                            fontSize: '16px'
+                          }}>
+                            {index + 1}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: '600', color: '#1f2937' }}>
+                              Yêu cầu đổi lịch #{request.id}
+                            </div>
+                            <div style={{ fontSize: '14px', color: '#6b7280' }}>
+                              Ngày yêu cầu: {new Date(request.ngayYeuCau).toLocaleDateString('vi-VN')}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            color: request.trangThai === 'ChoDuyet' ? '#d97706' : request.trangThai === 'DaDuyet' ? '#059669' : '#dc2626'
+                          }}>
+                            {request.trangThai}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                            {request.trangThai === 'ChoDuyet' ? 'Chờ duyệt' : request.trangThai === 'DaDuyet' ? 'Đã duyệt' : 'Từ chối'}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Nội dung đang phát triển */}
+              <div style={{
+                textAlign: 'center',
+                padding: '40px',
+                color: '#6b7280'
+              }}>
+                <i className="fas fa-calendar-alt" style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}></i>
+                <h3 style={{ margin: '0 0 8px 0' }}>Chức năng đổi lịch học</h3>
+                <p style={{ margin: 0, marginBottom: '20px' }}>Chức năng đổi lịch học đang được phát triển.</p>
+
+                {/* Hiển thị thông tin lịch học hiện tại */}
+                <div style={{
+                  background: '#f9fafb',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  padding: '20px',
+                  marginBottom: '20px',
+                  textAlign: 'left',
+                  maxWidth: '600px',
+                  margin: '0 auto 20px auto'
+                }}>
+                  <h4 style={{ margin: '0 0 15px 0', color: '#374151' }}>
+                    <i className="fas fa-info-circle"></i> Thông tin lịch học hiện tại:
+                  </h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+                    <div>
+                      <strong>Ngày học trong tuần:</strong><br />
+                      {classInfo.ngayHocTrongTuan || 'Chưa xác định'}
+                    </div>
+                    <div>
+                      <strong>Ca học:</strong><br />
+                      {classInfo.caHoc || 'Chưa xác định'}
+                    </div>
+                    <div>
+                      <strong>Thời lượng:</strong><br />
+                      {classInfo.thoiLuongGio} giờ
+                    </div>
+                    <div>
+                      <strong>Ngày bắt đầu:</strong><br />
+                      {formatDate(classInfo.ngayBatDau)}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{
+                  background: '#fff3cd',
+                  border: '1px solid #ffeaa7',
+                  borderRadius: '8px',
+                  padding: '15px',
+                  color: '#856404',
+                  maxWidth: '500px',
+                  margin: '0 auto'
+                }}>
+                  <i className="fas fa-tools" style={{ fontSize: '20px', marginBottom: '10px' }}></i>
+                  <h5 style={{ margin: '0 0 8px 0', color: '#856404' }}>Đang phát triển</h5>
+                  <p style={{ margin: 0, fontSize: '14px' }}>
+                    Chức năng đổi lịch học sẽ cho phép giáo viên:
+                  </p>
+                  <ul style={{ margin: '10px 0 0 0', paddingLeft: '20px', fontSize: '14px' }}>
+                    <li>Đổi ngày học trong tuần</li>
+                    <li>Đổi ca học (sáng/chiều/tối)</li>
+                    <li>Đổi địa điểm học</li>
+                    <li>Gửi yêu cầu duyệt cho admin</li>
+                    <li>Xem lịch sử thay đổi</li>
+                  </ul>
+                </div>
+              </div>
             </div>
           )}
         </div>
