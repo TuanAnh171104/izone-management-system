@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { lopHocService, LopHoc } from '../../services/api';
+import { lopHocService, LopHoc, khoaHocService, KhoaHoc, diaDiemService, DiaDiem } from '../../services/api';
 import '../../styles/Management.css';
 
 interface PaginationInfo {
@@ -13,9 +13,13 @@ interface PaginationInfo {
 const LecturerClasses: React.FC = () => {
   const navigate = useNavigate();
   const [classes, setClasses] = useState<LopHoc[]>([]);
+  const [khoaHocs, setKhoaHocs] = useState<KhoaHoc[]>([]);
+  const [diaDiems, setDiaDiems] = useState<DiaDiem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [isSearching, setIsSearching] = useState(false);
   const [pagination, setPagination] = useState<PaginationInfo>({
     currentPage: 1,
     totalPages: 1,
@@ -23,10 +27,49 @@ const LecturerClasses: React.FC = () => {
     itemsPerPage: 6
   });
   const [error, setError] = useState<string | null>(null);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Debounce search term
+  useEffect(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    debounceTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setIsSearching(false);
+    }, 500);
+
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [searchTerm]);
 
   useEffect(() => {
-    fetchClasses();
-  }, [pagination.currentPage, pagination.itemsPerPage, searchTerm, statusFilter]);
+    if (debouncedSearchTerm !== undefined) {
+      fetchClasses();
+    }
+  }, [pagination.currentPage, pagination.itemsPerPage, debouncedSearchTerm, statusFilter]);
+
+  // Load khoa hoc and dia diem data
+  useEffect(() => {
+    const loadReferenceData = async () => {
+      try {
+        const [khoaHocData, diaDiemData] = await Promise.all([
+          khoaHocService.getAll(),
+          diaDiemService.getAll()
+        ]);
+        setKhoaHocs(khoaHocData);
+        setDiaDiems(diaDiemData);
+      } catch (error) {
+        console.error('Lỗi khi tải dữ liệu tham khảo:', error);
+      }
+    };
+
+    loadReferenceData();
+  }, []);
 
   const fetchClasses = async () => {
     try {
@@ -54,7 +97,7 @@ const LecturerClasses: React.FC = () => {
         giangVienID: user.giangVienID,
         page: pagination.currentPage,
         pageSize: pagination.itemsPerPage,
-        searchTerm,
+        searchTerm: debouncedSearchTerm,
         statusFilter
       });
 
@@ -62,7 +105,7 @@ const LecturerClasses: React.FC = () => {
         user.giangVienID,
         pagination.currentPage,
         pagination.itemsPerPage,
-        searchTerm,
+        debouncedSearchTerm,
         statusFilter
       );
 
@@ -83,6 +126,7 @@ const LecturerClasses: React.FC = () => {
 
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
+    setIsSearching(true); // Hiển thị trạng thái đang tìm kiếm
     setPagination(prev => ({ ...prev, currentPage: 1 }));
   };
 
@@ -121,6 +165,18 @@ const LecturerClasses: React.FC = () => {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('vi-VN');
+  };
+
+  const getKhoaHocName = (khoaHocID: number | null): string => {
+    if (!khoaHocID || khoaHocID === 0) return 'Chưa xác định';
+    const khoaHoc = khoaHocs.find(k => k.khoaHocID === khoaHocID);
+    return khoaHoc ? khoaHoc.tenKhoaHoc : `Khóa học ${khoaHocID}`;
+  };
+
+  const getDiaDiemName = (diaDiemID: number | null): string => {
+    if (!diaDiemID || diaDiemID === 0) return 'Chưa xác định';
+    const diaDiem = diaDiems.find(d => d.diaDiemID === diaDiemID);
+    return diaDiem ? diaDiem.tenCoSo : `Địa điểm ${diaDiemID}`;
   };
 
   const renderPagination = () => {
@@ -226,19 +282,35 @@ const LecturerClasses: React.FC = () => {
 
       {/* Search and Filter Section */}
       <div className="search-section" style={{ display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '20px' }}>
-        <input
-          type="text"
-          className="search-input"
-          placeholder="Tìm kiếm theo ID lớp, ID khóa học, tên khóa học..."
-          value={searchTerm}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          style={{
-            padding: '8px 12px',
-            border: '1px solid #ddd',
-            borderRadius: '4px',
-            width: '350px'
-          }}
-        />
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Tìm kiếm theo ID lớp, ID khóa học, tên khóa học..."
+            value={searchTerm}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              border: '1px solid #ddd',
+              borderRadius: '4px',
+              width: '350px'
+            }}
+          />
+          {isSearching && (
+            <div style={{
+              position: 'absolute',
+              right: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              color: '#6b7280',
+              fontSize: '12px'
+            }}>
+              <i className="fas fa-spinner fa-spin"></i>
+              <span>Đang tìm...</span>
+            </div>
+          )}
+        </div>
 
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
@@ -347,7 +419,7 @@ const LecturerClasses: React.FC = () => {
                   Lớp ID: {classItem.lopID}
                 </h3>
                 <p style={{ margin: 0, color: '#6b7280', fontSize: '14px' }}>
-                  Khóa học ID: {classItem.khoaHocID}
+                  <strong>Khóa học:</strong> {getKhoaHocName(classItem.khoaHocID)}
                 </p>
               </div>
 
@@ -373,7 +445,7 @@ const LecturerClasses: React.FC = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <i className="fas fa-map-marker-alt" style={{ color: '#6b7280' }}></i>
                       <span style={{ fontSize: '14px', color: '#374151' }}>
-                        <strong>Địa điểm ID:</strong> {classItem.diaDiemID}
+                        <strong>Địa điểm:</strong> {getDiaDiemName(classItem.diaDiemID)}
                       </span>
                     </div>
                   )}

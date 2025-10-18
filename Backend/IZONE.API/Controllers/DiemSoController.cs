@@ -79,6 +79,13 @@ namespace IZONE.API.Controllers
             return Ok(diemSos);
         }
 
+        [HttpGet("diem-trung-binh/hoc-vien/{hocVienId}/lop/{lopId}")]
+        public async Task<ActionResult<decimal>> GetDiemTrungBinhByHocVienAndLop(int hocVienId, int lopId)
+        {
+            var diemTrungBinh = await _diemSoRepository.GetDiemTrungBinhByHocVienAndLopAsync(hocVienId, lopId);
+            return Ok(diemTrungBinh);
+        }
+
         [HttpPost]
         public async Task<ActionResult<DiemSo>> Create([FromBody] DiemSo diemSo)
         {
@@ -125,6 +132,54 @@ namespace IZONE.API.Controllers
 
             await _diemSoRepository.DeleteAsync(diemSo);
             return NoContent();
+        }
+
+        [HttpPost("bulk")]
+        public async Task<IActionResult> CreateBulk([FromBody] List<DiemSo> diemSos)
+        {
+            if (diemSos == null || !diemSos.Any())
+            {
+                return BadRequest("Danh sách điểm số không được trống");
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            try
+            {
+                var createdDiemSos = new List<DiemSo>();
+
+                foreach (var diemSo in diemSos)
+                {
+                    // Kiểm tra xem đã tồn tại điểm cho học viên này chưa
+                    var existingDiemSo = await _diemSoRepository.GetByHocVienAndLopAndLoaiDiemAsync(
+                        diemSo.HocVienID, diemSo.LopID, diemSo.LoaiDiem);
+
+                    if (existingDiemSo != null)
+                    {
+                        // Cập nhật điểm hiện có
+                        existingDiemSo.Diem = diemSo.Diem;
+                        existingDiemSo.KetQua = diemSo.Diem >= 5 ? "Dat" : "KhongDat";
+                        await _diemSoRepository.UpdateAsync(existingDiemSo);
+                        createdDiemSos.Add(existingDiemSo);
+                    }
+                    else
+                    {
+                        // Tạo điểm mới
+                        diemSo.KetQua = diemSo.Diem >= 5 ? "Dat" : "KhongDat";
+                        var newDiemSo = await _diemSoRepository.AddAsync(diemSo);
+                        createdDiemSos.Add(newDiemSo);
+                    }
+                }
+
+                return CreatedAtAction(nameof(GetAll), createdDiemSos);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Lỗi khi lưu điểm số: {ex.Message}");
+            }
         }
     }
 }

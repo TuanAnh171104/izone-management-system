@@ -74,5 +74,34 @@ namespace IZONE.Infrastructure.Repositories
                 .OrderBy(ds => ds.LoaiDiem)
                 .ToListAsync();
         }
+
+        public async Task<decimal> GetDiemTrungBinhByHocVienAndLopAsync(int hocVienId, int lopId)
+        {
+            var diemSos = await _context.DiemSos
+                .Where(ds => ds.HocVienID == hocVienId && ds.LopID == lopId)
+                .ToListAsync();
+
+            if (!diemSos.Any())
+                return 0;
+
+            decimal diemGiuaKy = 0;
+            decimal diemCuoiKy = 0;
+
+            foreach (var diem in diemSos)
+            {
+                if (diem.LoaiDiem == "GiuaKy")
+                    diemGiuaKy = diem.Diem;
+                else if (diem.LoaiDiem == "CuoiKy")
+                    diemCuoiKy = diem.Diem;
+            }
+
+            // Tính điểm trung bình theo công thức: (Giữa kỳ + Cuối kỳ * 2) / 3
+            if (diemGiuaKy > 0 || diemCuoiKy > 0)
+            {
+                return Math.Round((diemGiuaKy + diemCuoiKy * 2) / 3, 2);
+            }
+
+            return 0;
+        }
     }
 }

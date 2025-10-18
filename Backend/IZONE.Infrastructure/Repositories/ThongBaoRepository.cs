@@ -39,10 +39,18 @@ namespace IZONE.Infrastructure.Repositories
                 }
             }
 
-            // Chỉ lấy thông báo cá nhân nếu thực sự gửi riêng cho giảng viên (không phải thông báo lớp học)
+            // Lấy thông báo toàn hệ thống (cần thiết cho tất cả người dùng bao gồm giảng viên)
+            var systemThongBaos = await _context.ThongBao
+                .Where(tb => tb.LoaiNguoiNhan == "ToanHeThong")
+                .OrderByDescending(tb => tb.NgayGui)
+                .ToListAsync();
+
+            thongBaos.AddRange(systemThongBaos);
+
+            // Lấy thông báo cá nhân (bao gồm cả học viên và giảng viên)
             var personalThongBaos = await _context.ThongBao
                 .Where(tb => tb.NguoiNhanID == nguoiNhanId &&
-                            (tb.LoaiNguoiNhan != "LopHoc" || tb.LoaiNguoiNhan == null))
+                            (tb.LoaiNguoiNhan != "LopHoc" && tb.LoaiNguoiNhan != "ToanHeThong"))
                 .OrderByDescending(tb => tb.NgayGui)
                 .ToListAsync();
 

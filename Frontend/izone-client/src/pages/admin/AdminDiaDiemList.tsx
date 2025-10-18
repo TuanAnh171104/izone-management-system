@@ -385,7 +385,10 @@ const AdminDiaDiemList: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
               <h3 style={{ margin: 0, color: '#dc2626' }}>Danh sách cơ sở</h3>
               <button
-                onClick={() => setShowAddModal(true)}
+                onClick={() => {
+                  resetForm();
+                  setShowAddModal(true);
+                }}
                 className="btn btn-primary"
                 style={{ padding: '8px 16px', fontSize: '14px' }}
               >

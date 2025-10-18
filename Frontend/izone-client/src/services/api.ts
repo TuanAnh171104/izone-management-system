@@ -316,6 +316,16 @@ export interface DiemDanh {
   ghiChu?: string | null;
 }
 
+export interface DiemSo {
+  diemID: number;
+  hocVienID: number;
+  lopID: number;
+  loaiDiem: string;
+  diem: number;
+  ketQua: string;
+  ghiChu?: string | null;
+}
+
 // DiemDanh Service
 export const diemDanhService = {
   // Get all attendance records
@@ -380,6 +390,79 @@ export const diemDanhService = {
   // Delete attendance record
   delete: async (id: number): Promise<void> => {
     await apiClient.delete(`/DiemDanh/${id}`);
+  },
+};
+
+// DiemSo Service
+export const diemSoService = {
+  // Get all grades
+  getAll: async (): Promise<DiemSo[]> => {
+    const response = await apiClient.get<DiemSo[]>('/DiemSo');
+    return response.data;
+  },
+
+  // Get grade by ID
+  getById: async (id: number): Promise<DiemSo> => {
+    const response = await apiClient.get<DiemSo>(`/DiemSo/${id}`);
+    return response.data;
+  },
+
+  // Get grades by student ID
+  getByHocVienId: async (hocVienId: number): Promise<DiemSo[]> => {
+    const response = await apiClient.get<DiemSo[]>(`/DiemSo/hoc-vien/${hocVienId}`);
+    return response.data;
+  },
+
+  // Get grades by class ID
+  getByLopId: async (lopId: number): Promise<DiemSo[]> => {
+    const response = await apiClient.get<DiemSo[]>(`/DiemSo/lop/${lopId}`);
+    return response.data;
+  },
+
+  // Get grades by grade type
+  getByLoaiDiem: async (loaiDiem: string): Promise<DiemSo[]> => {
+    const response = await apiClient.get<DiemSo[]>(`/DiemSo/loai-diem/${loaiDiem}`);
+    return response.data;
+  },
+
+  // Get grades by result
+  getByKetQua: async (ketQua: string): Promise<DiemSo[]> => {
+    const response = await apiClient.get<DiemSo[]>(`/DiemSo/ket-qua/${ketQua}`);
+    return response.data;
+  },
+
+  // Get grade by student, class and grade type
+  getByHocVienAndLopAndLoaiDiem: async (hocVienId: number, lopId: number, loaiDiem: string): Promise<DiemSo> => {
+    const response = await apiClient.get<DiemSo>(`/DiemSo/hoc-vien/${hocVienId}/lop/${lopId}/loai-diem/${loaiDiem}`);
+    return response.data;
+  },
+
+  // Get grades by student and class
+  getGradesByHocVienAndLop: async (hocVienId: number, lopId: number): Promise<DiemSo[]> => {
+    const response = await apiClient.get<DiemSo[]>(`/DiemSo/grades/hoc-vien/${hocVienId}/lop/${lopId}`);
+    return response.data;
+  },
+
+  // Create grade
+  create: async (diemSo: Omit<DiemSo, 'diemID'>): Promise<DiemSo> => {
+    const response = await apiClient.post<DiemSo>('/DiemSo', diemSo);
+    return response.data;
+  },
+
+  // Update grade
+  update: async (id: number, diemSo: DiemSo): Promise<void> => {
+    await apiClient.put(`/DiemSo/${id}`, diemSo);
+  },
+
+  // Delete grade
+  delete: async (id: number): Promise<void> => {
+    await apiClient.delete(`/DiemSo/${id}`);
+  },
+
+  // Bulk create/update grades
+  createBulk: async (diemSos: Omit<DiemSo, 'diemID'>[]): Promise<DiemSo[]> => {
+    const response = await apiClient.post<DiemSo[]>('/DiemSo/bulk', diemSos);
+    return response.data;
   },
 };
 

@@ -415,6 +415,8 @@ const AdminLecturers: React.FC = () => {
                 value={newLecturer.email}
                 onChange={(e) => setNewLecturer({...newLecturer, email: e.target.value})}
                 placeholder="Nhập email"
+                autoComplete="off"
+                data-form-type="new-lecturer"
                 style={{
                   width: '100%',
                   padding: '8px 12px',
@@ -432,6 +434,8 @@ const AdminLecturers: React.FC = () => {
                 value={newLecturer.matKhau}
                 onChange={(e) => setNewLecturer({...newLecturer, matKhau: e.target.value})}
                 placeholder="Nhập mật khẩu"
+                autoComplete="new-password"
+                data-form-type="new-lecturer"
                 style={{
                   width: '100%',
                   padding: '8px 12px',
@@ -450,6 +454,8 @@ const AdminLecturers: React.FC = () => {
                 value={newLecturer.hoTen}
                 onChange={(e) => setNewLecturer({...newLecturer, hoTen: e.target.value})}
                 placeholder="Nhập họ tên"
+                autoComplete="off"
+                data-form-type="new-lecturer"
                 style={{
                   width: '100%',
                   padding: '8px 12px',
@@ -467,6 +473,8 @@ const AdminLecturers: React.FC = () => {
                 value={newLecturer.chuyenMon}
                 onChange={(e) => setNewLecturer({...newLecturer, chuyenMon: e.target.value})}
                 placeholder="Nhập chuyên môn"
+                autoComplete="off"
+                data-form-type="new-lecturer"
                 style={{
                   width: '100%',
                   padding: '8px 12px',

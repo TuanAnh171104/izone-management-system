@@ -10,5 +10,6 @@ namespace IZONE.Core.Interfaces
         Task<IEnumerable<DiemSo>> GetByKetQuaAsync(string ketQua);
         Task<DiemSo?> GetByHocVienAndLopAndLoaiDiemAsync(int hocVienId, int lopId, string loaiDiem);
         Task<IEnumerable<DiemSo>> GetGradesByHocVienAndLopAsync(int hocVienId, int lopId);
+        Task<decimal> GetDiemTrungBinhByHocVienAndLopAsync(int hocVienId, int lopId);
     }
 }
