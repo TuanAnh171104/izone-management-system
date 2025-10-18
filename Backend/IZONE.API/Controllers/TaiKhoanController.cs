@@ -342,6 +342,68 @@ namespace IZONE.API.Controllers
                 return StatusCode(500, "Đã xảy ra lỗi khi xử lý yêu cầu");
             }
         }
+
+        [HttpPost("change-password")]
+        public async Task<ActionResult> ChangePassword([FromBody] ChangePasswordWithUserRequest request)
+        {
+            try
+            {
+                // Validate input
+                if (request == null)
+                {
+                    return BadRequest("Dữ liệu đầu vào không hợp lệ");
+                }
+
+                if (string.IsNullOrEmpty(request.CurrentPassword) || string.IsNullOrEmpty(request.NewPassword))
+                {
+                    return BadRequest("Mật khẩu hiện tại và mật khẩu mới không được để trống");
+                }
+
+                if (request.UserInfo == null)
+                {
+                    return BadRequest("Thông tin người dùng không được để trống");
+                }
+
+                if (string.IsNullOrEmpty(request.UserInfo.Email))
+                {
+                    return BadRequest("Email người dùng không được để trống");
+                }
+
+                _logger.LogInformation("Đang đổi mật khẩu cho user: {Email}, Role: {Role}", request.UserInfo.Email, request.UserInfo.VaiTro);
+
+                // Tìm tài khoản theo email
+                var taiKhoan = await _taiKhoanRepository.FindAsync(x => x.Email == request.UserInfo.Email);
+                var account = taiKhoan?.FirstOrDefault();
+
+                if (account == null)
+                {
+                    _logger.LogWarning("Không tìm thấy tài khoản với email: {Email}", request.UserInfo.Email);
+                    return NotFound("Không tìm thấy tài khoản với email được cung cấp");
+                }
+
+                _logger.LogInformation("Tìm thấy tài khoản: ID={TaiKhoanID}, Email={Email}", account.TaiKhoanID, account.Email);
+
+                // Kiểm tra mật khẩu hiện tại
+                if (!string.Equals(account.MatKhau, request.CurrentPassword))
+                {
+                    _logger.LogWarning("Mật khẩu hiện tại không đúng cho tài khoản: {Email}", request.UserInfo.Email);
+                    return BadRequest("Mật khẩu hiện tại không đúng");
+                }
+
+                // Cập nhật mật khẩu mới
+                account.MatKhau = request.NewPassword;
+                await _taiKhoanRepository.UpdateAsync(account);
+
+                _logger.LogInformation("Đổi mật khẩu thành công cho tài khoản: {Email}", request.UserInfo.Email);
+
+                return Ok(new { message = "Đổi mật khẩu thành công" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi đổi mật khẩu");
+                return StatusCode(500, new { message = "Đã xảy ra lỗi khi xử lý yêu cầu", error = ex.Message });
+            }
+        }
     }
 
     public class LoginModel
@@ -363,5 +425,28 @@ namespace IZONE.API.Controllers
         public string DiaChi { get; set; } = string.Empty;
         public string SoDienThoai { get; set; } = string.Empty;
         public string GhiChu { get; set; } = string.Empty; // Không bắt buộc
+    }
+
+    public class ChangePasswordRequest
+    {
+        public string CurrentPassword { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
+    }
+
+    public class ChangePasswordWithUserRequest
+    {
+        public string CurrentPassword { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
+        public UserInfo? UserInfo { get; set; }
+    }
+
+    public class UserInfo
+    {
+        public int TaiKhoanID { get; set; }
+        public string Email { get; set; } = string.Empty;
+        public string VaiTro { get; set; } = string.Empty;
+        public int? GiangVienID { get; set; }
+        public string? HoTen { get; set; }
+        public string? ChuyenMon { get; set; }
     }
 }

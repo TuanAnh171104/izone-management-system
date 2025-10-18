@@ -23,6 +23,7 @@ import LecturerDashboard from './pages/lecturer/LecturerDashboard';
 import LecturerClasses from './pages/lecturer/LecturerClasses';
 import LecturerClassDetail from './pages/lecturer/LecturerClassDetail';
 import LecturerNotifications from './pages/lecturer/LecturerNotifications';
+import LecturerProfile from './pages/lecturer/LecturerProfile';
 import ApiTest from './pages/lecturer/ApiTest';
 
 
@@ -95,6 +96,7 @@ const AppContent: React.FC = () => {
             <Route path="classes" element={<LecturerClasses />} />
             <Route path="class/:id" element={<LecturerClassDetail />} />
             <Route path="notifications" element={<LecturerNotifications />} />
+            <Route path="profile" element={<LecturerProfile />} />
           </Route>
           {/* API Test route (public) */}
           <Route path="/api-test" element={<ApiTest />} />

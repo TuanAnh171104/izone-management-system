@@ -8,16 +8,39 @@ interface NotificationWithType extends ThongBao {
   classId?: number;
 }
 
+interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
+}
+
 const LecturerNotifications: React.FC = () => {
   const [notifications, setNotifications] = useState<NotificationWithType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'personal' | 'class' | 'system'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    currentPage: 1,
+    totalPages: 0,
+    totalItems: 0,
+    itemsPerPage: 5
+  });
 
   useEffect(() => {
     fetchNotifications();
   }, []);
+
+  useEffect(() => {
+    // Reset to first page when filter or search changes
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+  }, [filter, searchTerm]);
+
+  useEffect(() => {
+    // Update pagination info when notifications change
+    updatePaginationInfo();
+  }, [notifications, filter, searchTerm]);
 
   const fetchNotifications = async () => {
     try {
@@ -77,6 +100,16 @@ const LecturerNotifications: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const updatePaginationInfo = () => {
+    const filteredCount = filteredNotifications.length;
+    const totalPages = Math.ceil(filteredCount / pagination.itemsPerPage);
+    setPagination(prev => ({
+      ...prev,
+      totalPages,
+      totalItems: filteredCount
+    }));
   };
 
   const getNotificationIcon = (type: string) => {
@@ -147,6 +180,46 @@ const LecturerNotifications: React.FC = () => {
 
     return true;
   });
+
+  // Get current page notifications
+  const getCurrentPageNotifications = () => {
+    const startIndex = (pagination.currentPage - 1) * pagination.itemsPerPage;
+    const endIndex = startIndex + pagination.itemsPerPage;
+    return filteredNotifications.slice(startIndex, endIndex);
+  };
+
+  // Pagination handlers
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      setPagination(prev => ({ ...prev, currentPage: newPage }));
+    }
+  };
+
+  const handleNextPage = () => {
+    handlePageChange(pagination.currentPage + 1);
+  };
+
+  const handlePrevPage = () => {
+    handlePageChange(pagination.currentPage - 1);
+  };
+
+  // Generate page numbers for pagination UI
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, pagination.currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(pagination.totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+
+    return pages;
+  };
 
   const getFilterLabel = (filterType: string) => {
     switch (filterType) {
@@ -262,76 +335,154 @@ const LecturerNotifications: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {filteredNotifications.map((notification) => (
-              <div
-                key={notification.tBID}
-                className="notification-card"
-                style={{
-                  background: 'white',
-                  borderRadius: '8px',
-                  padding: '16px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                  ...getNotificationColor(notification.type)
-                }}
-              >
-                <div className="notification-header" style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '12px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      background: notification.type === 'personal' ? '#3b82f6' :
-                                 notification.type === 'class' ? '#10b981' : '#f59e0b',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'white'
-                    }}>
-                      <i className={getNotificationIcon(notification.type)}></i>
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: '600', color: '#1f2937' }}>
-                        {notification.type === 'personal' && 'Thông báo cá nhân'}
-                        {notification.type === 'class' && `Thông báo lớp học`}
-                        {notification.type === 'system' && 'Thông báo hệ thống'}
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                        {notification.nguoiGui && `Từ: ${notification.nguoiGui} • `}
-                        {formatDate(notification.ngayGui)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="notification-content" style={{
-                  color: '#374151',
-                  lineHeight: '1.5',
-                  marginBottom: '12px'
-                }}>
-                  {notification.noiDung}
-                </div>
-
-                {notification.type === 'class' && notification.classId && (
-                  <div style={{
-                    fontSize: '12px',
-                    color: '#059669',
-                    background: '#ecfdf5',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    display: 'inline-block'
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {getCurrentPageNotifications().map((notification) => (
+                <div
+                  key={notification.tBID}
+                  className="notification-card"
+                  style={{
+                    background: 'white',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    ...getNotificationColor(notification.type)
+                  }}
+                >
+                  <div className="notification-header" style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '12px'
                   }}>
-                    <i className="fas fa-tag"></i> Lớp ID: {notification.classId}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '50%',
+                        background: notification.type === 'personal' ? '#3b82f6' :
+                                   notification.type === 'class' ? '#10b981' : '#f59e0b',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white'
+                      }}>
+                        <i className={getNotificationIcon(notification.type)}></i>
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: '600', color: '#1f2937' }}>
+                          {notification.type === 'personal' && 'Thông báo cá nhân'}
+                          {notification.type === 'class' && `Thông báo lớp học`}
+                          {notification.type === 'system' && 'Thông báo hệ thống'}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                          {notification.nguoiGui && `Từ: ${notification.nguoiGui} • `}
+                          {formatDate(notification.ngayGui)}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                )}
+
+                  <div className="notification-content" style={{
+                    color: '#374151',
+                    lineHeight: '1.5',
+                    marginBottom: '12px'
+                  }}>
+                    {notification.noiDung}
+                  </div>
+
+                  {notification.type === 'class' && notification.classId && (
+                    <div style={{
+                      fontSize: '12px',
+                      color: '#059669',
+                      background: '#ecfdf5',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      display: 'inline-block'
+                    }}>
+                      <i className="fas fa-tag"></i> Lớp ID: {notification.classId}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination UI */}
+            {pagination.totalPages > 1 && (
+              <div className="pagination-container" style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '10px',
+                marginTop: '30px',
+                padding: '20px',
+                background: 'white',
+                borderRadius: '8px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}>
+                <button
+                  onClick={handlePrevPage}
+                  disabled={pagination.currentPage === 1}
+                  style={{
+                    padding: '8px 12px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    background: pagination.currentPage === 1 ? '#f3f4f6' : 'white',
+                    color: pagination.currentPage === 1 ? '#9ca3af' : '#333',
+                    cursor: pagination.currentPage === 1 ? 'not-allowed' : 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  <i className="fas fa-chevron-left"></i> Trước
+                </button>
+
+                <div className="page-numbers" style={{ display: 'flex', gap: '5px' }}>
+                  {getPageNumbers().map(pageNum => (
+                    <button
+                      key={pageNum}
+                      onClick={() => handlePageChange(pageNum)}
+                      style={{
+                        padding: '8px 12px',
+                        border: '1px solid #ddd',
+                        borderRadius: '4px',
+                        background: pagination.currentPage === pageNum ? '#dc2626' : 'white',
+                        color: pagination.currentPage === pageNum ? 'white' : '#333',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        minWidth: '40px'
+                      }}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={handleNextPage}
+                  disabled={pagination.currentPage === pagination.totalPages}
+                  style={{
+                    padding: '8px 12px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    background: pagination.currentPage === pagination.totalPages ? '#f3f4f6' : 'white',
+                    color: pagination.currentPage === pagination.totalPages ? '#9ca3af' : '#333',
+                    cursor: pagination.currentPage === pagination.totalPages ? 'not-allowed' : 'pointer',
+                    fontSize: '14px'
+                  }}
+                >
+                  Sau <i className="fas fa-chevron-right"></i>
+                </button>
+
+                <div style={{
+                  marginLeft: '20px',
+                  fontSize: '14px',
+                  color: '#6b7280'
+                }}>
+                  Hiển thị {((pagination.currentPage - 1) * pagination.itemsPerPage) + 1} - {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} của {pagination.totalItems} thông báo
+                </div>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
     </div>

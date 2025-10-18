@@ -7,6 +7,9 @@ interface UserInfo {
   tenDangNhap: string;
   email: string;
   vaiTro: string;
+  hoTen?: string;
+  giangVienID?: number;
+  chuyenMon?: string;
 }
 
 const LecturerLayout: React.FC = () => {
@@ -64,7 +67,13 @@ const LecturerLayout: React.FC = () => {
                 <i className="fas fa-user"></i>
               </div>
               <div className="user-text">
-                <div className="user-name">{userInfo.tenDangNhap}</div>
+                <button
+                  className="user-name clickable"
+                  onClick={() => navigate('/lecturer/profile')}
+                  title="Xem thông tin cá nhân"
+                >
+                  {userInfo.hoTen || userInfo.tenDangNhap}
+                </button>
                 <div className="user-role">{userInfo.vaiTro}</div>
               </div>
             </div>

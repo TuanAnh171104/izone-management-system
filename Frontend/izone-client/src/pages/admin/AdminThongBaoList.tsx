@@ -21,6 +21,14 @@ const AdminThongBaoList: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<'all' | 'send' | 'history'>('all');
 
+  // State cho phân trang
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    itemsPerPage: 10
+  });
+
   // State cho form gửi thông báo
   const [showSendModal, setShowSendModal] = useState(false);
   const [sendForm, setSendForm] = useState({
@@ -52,6 +60,20 @@ const AdminThongBaoList: React.FC = () => {
   useEffect(() => {
     applyFilters();
   }, [thongBaoList, searchTerm, typeFilter]);
+
+  // Hàm xử lý phân trang
+  const handlePageChange = (page: number) => {
+    setPagination(prev => ({ ...prev, currentPage: page }));
+  };
+
+  const handleItemsPerPageChange = (itemsPerPage: number) => {
+    setPagination(prev => ({
+      ...prev,
+      itemsPerPage,
+      currentPage: 1,
+      totalPages: Math.ceil(prev.totalItems / itemsPerPage)
+    }));
+  };
 
   const fetchInitialData = async () => {
     try {
@@ -97,6 +119,17 @@ const AdminThongBaoList: React.FC = () => {
         thongBao.nguoiGui?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
+
+    // Cập nhật thông tin phân trang
+    const totalFilteredItems = filtered.length;
+    const totalPages = Math.ceil(totalFilteredItems / pagination.itemsPerPage);
+
+    setPagination(prev => ({
+      ...prev,
+      totalPages: totalPages,
+      totalItems: totalFilteredItems,
+      currentPage: totalFilteredItems === 0 ? 1 : Math.min(prev.currentPage, totalPages)
+    }));
 
     setFilteredThongBaoList(filtered);
   };
@@ -324,6 +357,93 @@ const AdminThongBaoList: React.FC = () => {
     return giangVien ? giangVien.hoTen : '';
   };
 
+  // Logic phân trang
+  const startIndex = (pagination.currentPage - 1) * pagination.itemsPerPage;
+  const paginatedThongBaoList = filteredThongBaoList.slice(startIndex, startIndex + pagination.itemsPerPage);
+
+  // Hàm render phân trang
+  const renderPagination = () => {
+    if (pagination.totalPages <= 1) return null;
+
+    const pages = [];
+    const maxVisiblePages = 5;
+
+    let startPage = Math.max(1, pagination.currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(pagination.totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+
+    return (
+      <div className="pagination-container">
+        <div className="pagination-info">
+          Hiển thị {startIndex + 1}-{Math.min(startIndex + pagination.itemsPerPage, pagination.totalItems)} của {pagination.totalItems} kết quả
+        </div>
+
+        <div className="pagination-controls">
+          <button
+            onClick={() => handlePageChange(pagination.currentPage - 1)}
+            disabled={pagination.currentPage === 1}
+            className="pagination-btn"
+          >
+            ‹ Trước
+          </button>
+
+          {startPage > 1 && (
+            <>
+              <button onClick={() => handlePageChange(1)} className="pagination-btn">1</button>
+              {startPage > 2 && <span className="pagination-dots">...</span>}
+            </>
+          )}
+
+          {pages.map(page => (
+            <button
+              key={page}
+              onClick={() => handlePageChange(page)}
+              className={`pagination-btn ${pagination.currentPage === page ? 'active' : ''}`}
+            >
+              {page}
+            </button>
+          ))}
+
+          {endPage < pagination.totalPages && (
+            <>
+              {endPage < pagination.totalPages - 1 && <span className="pagination-dots">...</span>}
+              <button onClick={() => handlePageChange(pagination.totalPages)} className="pagination-btn">{pagination.totalPages}</button>
+            </>
+          )}
+
+          <button
+            onClick={() => handlePageChange(pagination.currentPage + 1)}
+            disabled={pagination.currentPage === pagination.totalPages}
+            className="pagination-btn"
+          >
+            Sau ›
+          </button>
+        </div>
+
+        <div className="pagination-size">
+          <label>Hiển thị:</label>
+          <select
+            value={pagination.itemsPerPage}
+            onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+            className="pagination-select"
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="management-container">
@@ -475,7 +595,7 @@ const AdminThongBaoList: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredThongBaoList.map(thongBao => (
+            {paginatedThongBaoList.map(thongBao => (
               <tr key={thongBao.tBID}>
                 <td>{thongBao.tBID}</td>
                 <td>
@@ -502,6 +622,9 @@ const AdminThongBaoList: React.FC = () => {
             {thongBaoList.length === 0 ? 'Chưa có thông báo nào.' : 'Không tìm thấy thông báo nào phù hợp.'}
           </div>
         )}
+
+        {/* Pagination */}
+        {renderPagination()}
       </div>
 
       {/* Modal gửi thông báo */}
