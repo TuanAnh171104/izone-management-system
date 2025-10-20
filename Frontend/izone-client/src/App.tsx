@@ -25,6 +25,13 @@ import LecturerClassDetail from './pages/lecturer/LecturerClassDetail';
 import LecturerNotifications from './pages/lecturer/LecturerNotifications';
 import LecturerProfile from './pages/lecturer/LecturerProfile';
 import ApiTest from './pages/lecturer/ApiTest';
+// Student imports
+import StudentLayout from './pages/student/StudentLayout';
+import StudentDashboard from './pages/student/StudentDashboard';
+import StudentCourses from './pages/student/StudentCourses';
+import StudentMyClasses from './pages/student/StudentMyClasses';
+import StudentNotifications from './pages/student/StudentNotifications';
+import StudentProfile from './pages/student/StudentProfile';
 
 
 // Tạo các component tạm thời cho các trang
@@ -58,6 +65,7 @@ const AppContent: React.FC = () => {
   // Check if current route is admin or user dashboard
   const isInDashboard = location.pathname.startsWith('/admin') ||
                        location.pathname.startsWith('/lecturer') ||
+                       location.pathname.startsWith('/student') ||
                        location.pathname.startsWith('/giang-vien') ||
                        location.pathname.startsWith('/hoc-vien');
 
@@ -97,6 +105,14 @@ const AppContent: React.FC = () => {
             <Route path="class/:id" element={<LecturerClassDetail />} />
             <Route path="notifications" element={<LecturerNotifications />} />
             <Route path="profile" element={<LecturerProfile />} />
+          </Route>
+          {/* Student routes */}
+          <Route path="/student/*" element={<StudentLayout />}>
+            <Route index element={<StudentDashboard />} />
+            <Route path="courses" element={<StudentCourses />} />
+            <Route path="my-classes" element={<StudentMyClasses />} />
+            <Route path="notifications" element={<StudentNotifications />} />
+            <Route path="profile" element={<StudentProfile />} />
           </Route>
           {/* API Test route (public) */}
           <Route path="/api-test" element={<ApiTest />} />
