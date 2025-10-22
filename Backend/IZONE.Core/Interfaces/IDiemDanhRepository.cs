@@ -6,6 +6,7 @@ namespace IZONE.Core.Interfaces
     {
         Task<IEnumerable<DiemDanh>> GetByBuoiHocIdAsync(int buoiHocId);
         Task<IEnumerable<DiemDanh>> GetByHocVienIdAsync(int hocVienId);
+        Task<IEnumerable<DiemDanh>> GetByHocVienAndLopIdAsync(int hocVienId, int lopId);
         Task<DiemDanh?> GetByBuoiHocAndHocVienAsync(int buoiHocId, int hocVienId);
         Task<IEnumerable<DiemDanh>> GetAttendanceByLopIdAsync(int lopId);
         Task<double> GetAttendanceRateByHocVienAsync(int hocVienId, int lopId);

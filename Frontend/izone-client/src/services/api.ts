@@ -6,7 +6,7 @@ const API_BASE_URL = 'http://localhost:5080/api';
 // Create axios instance
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000, // Increased from 10s to 30s to handle large datasets
   headers: {
     'Content-Type': 'application/json',
   },
@@ -349,6 +349,12 @@ export const diemDanhService = {
   // Get attendance by student ID
   getByHocVienId: async (hocVienId: number): Promise<DiemDanh[]> => {
     const response = await apiClient.get<DiemDanh[]>(`/DiemDanh/hoc-vien/${hocVienId}`);
+    return response.data;
+  },
+
+  // Get attendance by student ID and class ID (optimized for student class detail)
+  getByHocVienAndLopId: async (hocVienId: number, lopId: number): Promise<DiemDanh[]> => {
+    const response = await apiClient.get<DiemDanh[]>(`/DiemDanh/hoc-vien/${hocVienId}/lop/${lopId}`);
     return response.data;
   },
 
@@ -929,6 +935,64 @@ export const lopHocService = {
       };
     } catch (error: any) {
       console.error('❌ Lỗi khi lấy danh sách lớp học phân trang:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        config: error.config
+      });
+      throw error;
+    }
+  },
+
+  // Get paginated classes by student with filters
+  getPaginatedByStudent: async (
+    hocVienID: number,
+    page: number = 1,
+    pageSize: number = 10,
+    searchTerm: string = "",
+    statusFilter: string = "all"
+  ): Promise<{ data: LopHoc[]; pagination: any }> => {
+    try {
+      console.log('🔄 Đang gọi API phân trang cho học viên:', { hocVienID, page, pageSize, searchTerm, statusFilter });
+
+      const response = await apiClient.get(`/LopHoc/student/${hocVienID}/paginated`, {
+        params: {
+          page,
+          pageSize,
+          searchTerm,
+          statusFilter
+        }
+      });
+
+      console.log('📚 API Response for paginated student classes:', response.data);
+
+      const { data, pagination } = response.data;
+
+      // Map API response to LopHoc interface
+      const mappedLopHocs: LopHoc[] = data.map((item: any) => ({
+        lopID: item.lopID,
+        khoaHocID: item.khoaHocID,
+        giangVienID: item.giangVienID,
+        diaDiemID: item.diaDiemID,
+        ngayBatDau: item.ngayBatDau,
+        ngayKetThuc: item.ngayKetThuc || null,
+        caHoc: item.caHoc || null,
+        ngayHocTrongTuan: item.ngayHocTrongTuan || null,
+        donGiaBuoiDay: item.donGiaBuoiDay,
+        thoiLuongGio: item.thoiLuongGio,
+        soLuongToiDa: item.soLuongToiDa,
+        trangThai: item.trangThai
+      }));
+
+      console.log('✅ Mapped paginated LopHoc data for student:', mappedLopHocs);
+
+      return {
+        data: mappedLopHocs,
+        pagination: pagination
+      };
+    } catch (error: any) {
+      console.error('❌ Lỗi khi lấy danh sách lớp học phân trang cho học viên:', error);
       console.error('❌ Error details:', {
         message: error.message,
         status: error.response?.status,

@@ -47,6 +47,13 @@ namespace IZONE.API.Controllers
             return Ok(diemDanhs);
         }
 
+        [HttpGet("hoc-vien/{hocVienId}/lop/{lopId}")]
+        public async Task<ActionResult<IEnumerable<DiemDanh>>> GetByHocVienAndLopId(int hocVienId, int lopId)
+        {
+            var diemDanhs = await _diemDanhRepository.GetByHocVienAndLopIdAsync(hocVienId, lopId);
+            return Ok(diemDanhs);
+        }
+
         [HttpGet("buoi-hoc/{buoiHocId}/hoc-vien/{hocVienId}")]
         public async Task<ActionResult<DiemDanh>> GetByBuoiHocAndHocVien(int buoiHocId, int hocVienId)
         {

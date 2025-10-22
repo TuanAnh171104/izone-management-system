@@ -32,6 +32,17 @@ namespace IZONE.Infrastructure.Repositories
                 .ToListAsync();
         }
 
+        public async Task<IEnumerable<DiemDanh>> GetByHocVienAndLopIdAsync(int hocVienId, int lopId)
+        {
+            return await _context.DiemDanhs
+                .Include(dd => dd.HocVien)
+                .Include(dd => dd.BuoiHoc)
+                .ThenInclude(bh => bh.LopHoc)
+                .Where(dd => dd.HocVienID == hocVienId && dd.BuoiHoc.LopID == lopId)
+                .OrderByDescending(dd => dd.BuoiHoc.NgayHoc)
+                .ToListAsync();
+        }
+
         public async Task<DiemDanh?> GetByBuoiHocAndHocVienAsync(int buoiHocId, int hocVienId)
         {
             return await _context.DiemDanhs

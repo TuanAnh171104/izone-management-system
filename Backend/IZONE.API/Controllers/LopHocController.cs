@@ -98,6 +98,137 @@ namespace IZONE.API.Controllers
             return Ok(lopHocs);
         }
 
+        // GET: api/LopHoc/student/{hocVienID}/paginated
+        [HttpGet("student/{hocVienID}/paginated")]
+        public async Task<ActionResult<object>> GetLopHocByStudentPaginated(
+            int hocVienID,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string searchTerm = "",
+            [FromQuery] string statusFilter = "all")
+        {
+            try
+            {
+                // Validate pagination parameters
+                if (page < 1) page = 1;
+                if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
+                // Lấy tất cả đăng ký lớp của học viên (không lọc theo trạng thái)
+                var dangKyLops = await _context.DangKyLops
+                    .Where(dk => dk.HocVienID == hocVienID)
+                    .Include(dk => dk.LopHoc)
+                        .ThenInclude(l => l.KhoaHoc)
+                    .Include(dk => dk.LopHoc)
+                        .ThenInclude(l => l.GiangVien)
+                    .Include(dk => dk.LopHoc)
+                        .ThenInclude(l => l.DiaDiem)
+                    .OrderByDescending(dk => dk.NgayDangKy) // Sắp xếp theo ngày đăng ký giảm dần (mới nhất trước)
+                    .ToListAsync();
+
+                if (dangKyLops == null || !dangKyLops.Any())
+                {
+                    return Ok(new
+                    {
+                        data = new List<object>(),
+                        pagination = new
+                        {
+                            currentPage = 1,
+                            totalPages = 1,
+                            totalItems = 0,
+                            itemsPerPage = pageSize
+                        }
+                    });
+                }
+
+                // Lấy danh sách lớp học từ đăng ký
+                var lopHocs = dangKyLops
+                    .Where(dk => dk.LopHoc != null)
+                    .Select(dk => dk.LopHoc)
+                    .ToList();
+
+                // Áp dụng bộ lọc trạng thái
+                var filteredLopHocs = ApplyStatusFilter(lopHocs, statusFilter);
+
+                // Áp dụng bộ lọc tìm kiếm
+                if (!string.IsNullOrEmpty(searchTerm))
+                {
+                    filteredLopHocs = ApplySearchFilter(filteredLopHocs, searchTerm);
+                }
+
+                // Tính toán phân trang
+                var totalItems = filteredLopHocs.Count();
+                var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+                var skip = (page - 1) * pageSize;
+                var paginatedLopHocs = filteredLopHocs.Skip(skip).Take(pageSize).ToList();
+
+                // Map to response format
+                var result = paginatedLopHocs.Select(l => new
+                {
+                    lopID = l.LopID,
+                    khoaHocID = l.KhoaHocID,
+                    giangVienID = l.GiangVienID,
+                    diaDiemID = l.DiaDiemID,
+                    ngayBatDau = l.NgayBatDau.ToString("yyyy-MM-dd"),
+                    ngayKetThuc = l.NgayKetThuc?.ToString("yyyy-MM-dd") ?? "",
+                    caHoc = l.CaHoc ?? "",
+                    ngayHocTrongTuan = l.NgayHocTrongTuan ?? "",
+                    donGiaBuoiDay = l.DonGiaBuoiDay > 0 ? l.DonGiaBuoiDay : 0,
+                    thoiLuongGio = l.ThoiLuongGio > 0 ? l.ThoiLuongGio : 1.5m,
+                    soLuongToiDa = l.SoLuongToiDa ?? 0,
+                    trangThai = l.TrangThai ?? "ChuaBatDau",
+                    // Thông tin bổ sung từ navigation properties
+                    khoaHoc = l.KhoaHoc != null ? new
+                    {
+                        khoaHocID = l.KhoaHoc.KhoaHocID,
+                        tenKhoaHoc = l.KhoaHoc.TenKhoaHoc ?? "",
+                        soBuoi = l.KhoaHoc.SoBuoi,
+                        hocPhi = l.KhoaHoc.HocPhi,
+                        donGiaTaiLieu = l.KhoaHoc.DonGiaTaiLieu
+                    } : null,
+                    giangVien = l.GiangVien != null ? new
+                    {
+                        giangVienID = l.GiangVien.GiangVienID,
+                        hoTen = l.GiangVien.HoTen ?? "",
+                        chuyenMon = l.GiangVien.ChuyenMon ?? ""
+                    } : null,
+                    diaDiem = l.DiaDiem != null ? new
+                    {
+                        diaDiemID = l.DiaDiem.DiaDiemID,
+                        tenCoSo = l.DiaDiem.TenCoSo ?? "",
+                        diaChi = l.DiaDiem.DiaChi ?? "",
+                        sucChua = l.DiaDiem.SucChua ?? 0
+                    } : null,
+                    // Thông tin đăng ký của học viên
+                    dangKyLop = dangKyLops.FirstOrDefault(dk => dk.LopID == l.LopID) != null ? new
+                    {
+                        dangKyID = dangKyLops.First(dk => dk.LopID == l.LopID).DangKyID,
+                        ngayDangKy = dangKyLops.First(dk => dk.LopID == l.LopID).NgayDangKy.ToString("yyyy-MM-dd"),
+                        trangThaiDangKy = dangKyLops.First(dk => dk.LopID == l.LopID).TrangThaiDangKy,
+                        trangThaiThanhToan = dangKyLops.First(dk => dk.LopID == l.LopID).TrangThaiThanhToan
+                    } : null
+                });
+
+                var paginationInfo = new
+                {
+                    currentPage = page,
+                    totalPages = totalPages,
+                    totalItems = totalItems,
+                    itemsPerPage = pageSize
+                };
+
+                return Ok(new
+                {
+                    data = result,
+                    pagination = paginationInfo
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi lấy danh sách lớp học phân trang cho học viên {HocVienID}", hocVienID);
+                return StatusCode(500, new { message = "Không thể tải danh sách lớp học", error = ex.Message });
+            }
+        }
+
         // GET: api/LopHoc/lecturer/{giangVienID}/paginated
         [HttpGet("lecturer/{giangVienID}/paginated")]
         public async Task<ActionResult<object>> GetLopHocByLecturerPaginated(

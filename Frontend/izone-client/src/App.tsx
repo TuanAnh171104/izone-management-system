@@ -30,6 +30,7 @@ import StudentLayout from './pages/student/StudentLayout';
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentCourses from './pages/student/StudentCourses';
 import StudentMyClasses from './pages/student/StudentMyClasses';
+import StudentClassDetail from './pages/student/StudentClassDetail';
 import StudentNotifications from './pages/student/StudentNotifications';
 import StudentProfile from './pages/student/StudentProfile';
 
@@ -111,6 +112,7 @@ const AppContent: React.FC = () => {
             <Route index element={<StudentDashboard />} />
             <Route path="courses" element={<StudentCourses />} />
             <Route path="my-classes" element={<StudentMyClasses />} />
+            <Route path="class/:id" element={<StudentClassDetail />} />
             <Route path="notifications" element={<StudentNotifications />} />
             <Route path="profile" element={<StudentProfile />} />
           </Route>
