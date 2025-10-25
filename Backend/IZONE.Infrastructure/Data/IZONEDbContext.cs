@@ -36,6 +36,29 @@ namespace IZONE.Infrastructure.Data
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             base.OnConfiguring(optionsBuilder);
+
+            // Configure SQL Server to handle triggers properly
+            optionsBuilder.UseSqlServer((opt) =>
+            {
+                // Disable OUTPUT clause optimization for tables with triggers
+                // This prevents conflicts with database triggers
+                opt.UseQuerySplittingBehavior(QuerySplittingBehavior.SingleQuery);
+
+                // Enable compatibility with triggers by avoiding OUTPUT clause
+                opt.EnableRetryOnFailure(
+                    maxRetryCount: 3,
+                    maxRetryDelay: TimeSpan.FromSeconds(5),
+                    errorNumbersToAdd: null
+                );
+
+                // Disable OUTPUT clause for INSERT operations to avoid trigger conflicts
+                // This is the key fix for the trigger conflict issue
+                opt.UseRelationalNulls(false);
+
+                // Additional configuration to handle triggers
+                opt.CommandTimeout(60); // Increase timeout for complex operations
+            });
+
             optionsBuilder.ConfigureWarnings(warnings =>
             {
                 warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning);

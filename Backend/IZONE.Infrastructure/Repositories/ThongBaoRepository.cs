@@ -7,8 +7,11 @@ namespace IZONE.Infrastructure.Repositories
 {
     public class ThongBaoRepository : GenericRepository<ThongBao>, IThongBaoRepository
     {
-        public ThongBaoRepository(IZONEDbContext context) : base(context)
+        private readonly IDangKyLopRepository _dangKyLopRepository;
+
+        public ThongBaoRepository(IZONEDbContext context, IDangKyLopRepository dangKyLopRepository) : base(context)
         {
+            _dangKyLopRepository = dangKyLopRepository;
         }
 
         public async Task<IEnumerable<ThongBao>> GetByNguoiNhanAsync(int nguoiNhanId)
@@ -38,8 +41,34 @@ namespace IZONE.Infrastructure.Repositories
                     thongBaos.AddRange(classThongBaos);
                 }
             }
+            else
+            {
+                // Nếu không phải giảng viên, kiểm tra xem có phải học viên không
+                var hocVien = await _context.HocViens
+                    .FirstOrDefaultAsync(hv => hv.HocVienID == nguoiNhanId);
 
-            // Lấy thông báo toàn hệ thống (cần thiết cho tất cả người dùng bao gồm giảng viên)
+                if (hocVien != null)
+                {
+                    // Lấy danh sách các lớp mà học viên đã đăng ký (tất cả trạng thái)
+                    var dangKyLops = await _dangKyLopRepository.GetByHocVienIdAsync(nguoiNhanId);
+                    var lopHocIds = dangKyLops
+                        .Select(dk => dk.LopID)
+                        .ToList();
+
+                    if (lopHocIds.Any())
+                    {
+                        // Lấy thông báo của các lớp mà học viên đã đăng ký (tất cả trạng thái)
+                        var classThongBaos = await _context.ThongBao
+                            .Where(tb => tb.LoaiNguoiNhan == "LopHoc" && lopHocIds.Contains(tb.NguoiNhanID.Value))
+                            .OrderByDescending(tb => tb.NgayGui)
+                            .ToListAsync();
+
+                        thongBaos.AddRange(classThongBaos);
+                    }
+                }
+            }
+
+            // Lấy thông báo toàn hệ thống (cần thiết cho tất cả người dùng)
             var systemThongBaos = await _context.ThongBao
                 .Where(tb => tb.LoaiNguoiNhan == "ToanHeThong")
                 .OrderByDescending(tb => tb.NgayGui)

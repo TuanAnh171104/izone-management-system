@@ -326,6 +326,39 @@ export interface DiemSo {
   ghiChu?: string | null;
 }
 
+// Payment request interfaces
+export interface CreatePaymentRequest {
+  hocVienID: number;
+  lopID: number;
+  soTien: number;
+}
+
+export interface ConfirmPaymentRequest {
+  lopID: number;
+}
+
+export interface ConfirmPaymentSuccessRequest {
+  hocVienID: number;
+  lopID: number;
+  soTien: number;
+  transactionRef: string;
+  phuongThuc: string;
+  provider: string;
+}
+
+export interface ThanhToan {
+  thanhToanID: number;
+  hocVienID: number;
+  dangKyID: number;
+  soTien: number;
+  ngayThanhToan: string;
+  phuongThuc?: string | null;
+  provider?: string | null;
+  transactionRef?: string | null;
+  status: string;
+  ghiChu?: string | null;
+}
+
 // DiemDanh Service
 export const diemDanhService = {
   // Get all attendance records
@@ -747,6 +780,53 @@ export const buoiHocService = {
 
 // LopHoc Service
 export const lopHocService = {
+  // Get all classes for registration (with full details)
+  getForRegistration: async (): Promise<any[]> => {
+    try {
+      console.log('🔄 Đang gọi API LopHoc registration-info...');
+      const response = await apiClient.get<any[]>('/LopHoc/registration-info');
+      console.log('📚 API Response for registration-info:', response.data);
+
+      if (!response.data) {
+        console.warn('⚠️ API trả về null hoặc undefined');
+        return [];
+      }
+
+      if (!Array.isArray(response.data)) {
+        console.warn('⚠️ API trả về không phải array:', typeof response.data);
+        return [];
+      }
+
+      if (response.data.length === 0) {
+        console.log('📭 Không có lớp học nào cho đăng ký');
+        return [];
+      }
+
+      // Log chi tiết 3 lớp đầu tiên để debug
+      response.data.slice(0, 3).forEach((lop, index) => {
+        console.log(`📋 Lớp ${index + 1} (ID: ${lop.lopID}):`, {
+          tenKhoaHoc: lop.khoaHoc?.tenKhoaHoc || 'NULL',
+          hoTenGV: lop.giangVien?.hoTen || 'NULL',
+          tenCoSo: lop.diaDiem?.tenCoSo || 'NULL',
+          ngayBatDau: lop.ngayBatDau,
+          hocPhi: lop.khoaHoc?.hocPhi || 'NULL'
+        });
+      });
+
+      console.log('✅ Mapped registration-info data:', response.data.length, 'lớp học');
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Lỗi khi lấy thông tin lớp học cho đăng ký:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        config: error.config
+      });
+      throw error;
+    }
+  },
+
   // Get all classes
   getAll: async (): Promise<LopHoc[]> => {
     try {
@@ -1513,6 +1593,121 @@ export const baoCaoService = {
     const response = await apiClient.get<any>('/BaoCao/loai-bao-cao');
     return response.data;
   },
+};
+
+// ThanhToan Service (updated with payment methods)
+export const thanhToanService = {
+    // Get all payments
+    getAll: async (): Promise<ThanhToan[]> => {
+        const response = await apiClient.get<ThanhToan[]>('/ThanhToan');
+        return response.data;
+    },
+
+    // Get payment by ID
+    getById: async (id: number): Promise<ThanhToan> => {
+        const response = await apiClient.get<ThanhToan>(`/ThanhToan/${id}`);
+        return response.data;
+    },
+
+    // Get payments by student ID
+    getByHocVienId: async (hocVienId: number): Promise<ThanhToan[]> => {
+        const response = await apiClient.get<ThanhToan[]>(`/ThanhToan/hoc-vien/${hocVienId}`);
+        return response.data;
+    },
+
+    // Get payments by registration ID
+    getByDangKyId: async (dangKyId: number): Promise<ThanhToan[]> => {
+        const response = await apiClient.get<ThanhToan[]>(`/ThanhToan/dang-ky/${dangKyId}`);
+        return response.data;
+    },
+
+    // Get payments by status
+    getByStatus: async (status: string): Promise<ThanhToan[]> => {
+        const response = await apiClient.get<ThanhToan[]>(`/ThanhToan/status/${status}`);
+        return response.data;
+    },
+
+    // Get payments by transaction reference
+    getByTransactionRef: async (transactionRef: string): Promise<ThanhToan> => {
+        const response = await apiClient.get<ThanhToan>(`/ThanhToan/transaction/${transactionRef}`);
+        return response.data;
+    },
+
+    // Get payment by transaction reference (alias for consistency)
+    getByTransaction: async (transactionRef: string): Promise<ThanhToan> => {
+        const response = await apiClient.get<ThanhToan>(`/ThanhToan/transaction/${transactionRef}`);
+        return response.data;
+    },
+
+    // NEW: Create payment order with QR code (VietQR with auto confirm)
+    createPayment: async (data: CreatePaymentRequest): Promise<any> => {
+        const response = await apiClient.post<any>('/ThanhToan/create-payment', data);
+        return response.data;
+    },
+
+    // NEW: Confirm payment (fake success) - DEPRECATED: Use confirmPaymentSuccess instead
+    confirmPayment: async (transactionRef: string, data: ConfirmPaymentRequest): Promise<any> => {
+        const response = await apiClient.post<any>(`/ThanhToan/confirm-payment/${transactionRef}`, data);
+        return response.data;
+    },
+
+    // NEW: Confirm payment success - NEW FLOW: Create actual payment record when payment succeeds
+    confirmPaymentSuccess: async (data: ConfirmPaymentSuccessRequest): Promise<any> => {
+        const response = await apiClient.post<any>('/ThanhToan/confirm-payment-success', data);
+        return response.data;
+    },
+
+    // NEW: Get payment status by transaction reference
+    getPaymentStatus: async (transactionRef: string): Promise<ThanhToan> => {
+        const response = await apiClient.get<ThanhToan>(`/ThanhToan/transaction/${transactionRef}`);
+        return response.data;
+    },
+
+    // NEW: Cancel payment
+    cancelPayment: async (transactionRef: string): Promise<any> => {
+        const response = await apiClient.post<any>(`/ThanhToan/cancel-payment/${transactionRef}`);
+        return response.data;
+    },
+
+    // NEW: Cleanup expired payments (for scheduled job)
+    cleanupExpiredPayments: async (): Promise<any> => {
+        const response = await apiClient.post<any>('/ThanhToan/cleanup-expired');
+        return response.data;
+    },
+
+    // NEW: Payment callback (for bank notifications)
+    paymentCallback: async (transactionRef: string, data: any): Promise<any> => {
+        const response = await apiClient.post<any>(`/ThanhToan/callback/${transactionRef}`, data);
+        return response.data;
+    },
+
+    // ===== SEPAY INTEGRATION =====
+
+    // Create SePay payment order with QR code (instead of redirect)
+    createSePayPayment: async (data: CreatePaymentRequest): Promise<any> => {
+        const response = await apiClient.post<any>('/ThanhToan/create-sepay-payment', data);
+        return response.data;
+    },
+
+    // Get SePay payment status
+    getSePayPaymentStatus: async (transactionRef: string): Promise<ThanhToan> => {
+        const response = await apiClient.get<ThanhToan>(`/ThanhToan/transaction/${transactionRef}`);
+        return response.data;
+    },
+
+    // ===== VNPAY INTEGRATION =====
+
+    // Create VNPay payment order (redirect to VNPay gateway)
+    createVNPayPayment: async (data: CreatePaymentRequest): Promise<any> => {
+        const response = await apiClient.post<any>('/ThanhToan/create-vnpay-payment', data);
+        return response.data;
+    },
+
+    // Get VNPay payment status
+    getVNPayPaymentStatus: async (transactionRef: string): Promise<ThanhToan> => {
+        const response = await apiClient.get<ThanhToan>(`/ThanhToan/transaction/${transactionRef}`);
+        return response.data;
+    }
 };
 
 // ThongBao Service

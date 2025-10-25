@@ -34,9 +34,16 @@ builder.Services.AddScoped<IGiangVienRepository, GiangVienRepository>();
 builder.Services.AddScoped<IKhoaHocRepository, KhoaHocRepository>();
 builder.Services.AddScoped<ILopHocRepository, LopHocRepository>();
 builder.Services.AddScoped<ILopHocService, LopHocService>();
-builder.Services.AddScoped<IThongBaoRepository, ThongBaoRepository>();
 builder.Services.AddScoped<IDiaDiemRepository, DiaDiemRepository>();
 builder.Services.AddScoped<IDangKyLopRepository, DangKyLopRepository>();
+
+// Add ThongBaoRepository with dependency injection
+builder.Services.AddScoped<IThongBaoRepository>(provider =>
+{
+    var context = provider.GetRequiredService<IZONEDbContext>();
+    var dangKyLopRepository = provider.GetRequiredService<IDangKyLopRepository>();
+    return new ThongBaoRepository(context, dangKyLopRepository);
+});
 builder.Services.AddScoped<IThanhToanRepository, ThanhToanRepository>();
 builder.Services.AddScoped<IViHocVienRepository, ViHocVienRepository>();
 builder.Services.AddScoped<IBaoLuuRepository, BaoLuuRepository>();

@@ -123,14 +123,18 @@ const GradesTab: React.FC<GradesTabProps> = ({ lopId, students, classStatus, onR
   const handleSaveGrades = async () => {
     setSaving(true);
     try {
-      const gradesToSave = Object.entries(gradesData).map(([hocVienId, data]) => ({
-        diemID: data.diemID || 0,
-        hocVienID: parseInt(hocVienId),
-        lopID: lopId,
-        loaiDiem: activeGradeType,
-        diem: data.diem,
-        ketQua: data.diem >= 5 ? 'Dat' : 'KhongDat'
-      }));
+      const gradesToSave = Object.entries(gradesData)
+        .filter(([_, data]) => data.diem > 0) // Chỉ lưu những điểm đã nhập (> 0)
+        .map(([hocVienId, data]) => ({
+          diemID: data.diemID || 0,
+          hocVienID: parseInt(hocVienId),
+          lopID: lopId,
+          loaiDiem: activeGradeType,
+          diem: parseFloat(data.diem.toFixed(2)), // Đảm bảo format decimal
+          ketQua: data.diem >= 5 ? 'Dat' : 'KhongDat'
+        }));
+
+      console.log('📤 Đang gửi điểm số:', gradesToSave);
 
       // Gửi yêu cầu lưu điểm số
       const response = await fetch('http://localhost:5080/api/DiemSo/bulk', {
@@ -141,15 +145,23 @@ const GradesTab: React.FC<GradesTabProps> = ({ lopId, students, classStatus, onR
         body: JSON.stringify(gradesToSave)
       });
 
+      console.log('📥 Response status:', response.status);
+      console.log('📥 Response headers:', response.headers);
+
       if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Lưu điểm số thành công:', result);
         alert('Đã lưu điểm số thành công!');
         await loadCurrentGrades(); // Tải lại dữ liệu sau khi lưu
       } else {
-        throw new Error('Không thể lưu điểm số');
+        const errorText = await response.text();
+        console.error('❌ Lỗi từ server:', errorText);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
     } catch (error) {
-      console.error('Lỗi khi lưu điểm số:', error);
-      alert('Có lỗi xảy ra khi lưu điểm số!');
+      console.error('❌ Lỗi khi lưu điểm số:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Lỗi không xác định';
+      alert(`Có lỗi xảy ra khi lưu điểm số: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
@@ -337,43 +349,8 @@ const GradesTab: React.FC<GradesTabProps> = ({ lopId, students, classStatus, onR
           <h3 style={{ margin: '0 0 8px 0' }}>Đang tải dữ liệu điểm số...</h3>
           <p style={{ margin: 0 }}>Vui lòng đợi trong giây lát.</p>
         </div>
-      ) : Object.keys(gradesData).length === 0 && !isReadOnly ? (
-        <div style={{
-          textAlign: 'center',
-          padding: '40px',
-          color: '#6b7280',
-          background: '#f9fafb',
-          border: '1px solid #e5e7eb',
-          borderRadius: '8px'
-        }}>
-          <i className="fas fa-graduation-cap" style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}></i>
-          <h3 style={{ margin: '0 0 8px 0' }}>Chưa có điểm số nào được nhập</h3>
-          <p style={{ margin: 0, marginBottom: '20px' }}>
-            {isReadOnly
-              ? 'Lớp đã kết thúc nhưng chưa có điểm số nào được nhập vào hệ thống.'
-              : 'Bạn có thể bắt đầu nhập điểm số cho học viên trong lớp học này.'
-            }
-          </p>
-          {!isReadOnly && (
-            <div style={{
-              background: '#fff3cd',
-              border: '1px solid #ffeaa7',
-              borderRadius: '8px',
-              padding: '15px',
-              color: '#856404',
-              maxWidth: '500px',
-              margin: '0 auto'
-            }}>
-              <i className="fas fa-info-circle" style={{ fontSize: '20px', marginBottom: '10px' }}></i>
-              <h5 style={{ margin: '0 0 8px 0', color: '#856404' }}>Hướng dẫn nhập điểm</h5>
-              <p style={{ margin: 0, fontSize: '14px' }}>
-                Nhập điểm số (0-10) cho từng học viên và nhấn "Lưu tất cả điểm số" để lưu vào hệ thống.
-              </p>
-            </div>
-          )}
-        </div>
-      ) : (
-        /* Danh sách học viên với form nhập điểm */
+      ) : students.length > 0 ? (
+        /* Hiển thị danh sách học viên khi có học viên */
         <div>
           <h4 style={{ margin: '0 0 15px 0', color: '#374151' }}>
             <i className={`fas ${isReadOnly ? 'fa-eye' : 'fa-edit'}`}></i>
@@ -472,27 +449,43 @@ const GradesTab: React.FC<GradesTabProps> = ({ lopId, students, classStatus, onR
 
           {/* Nút lưu điểm - chỉ hiển thị khi không ở chế độ read-only */}
           {!isReadOnly && (
-            <button
-              onClick={handleSaveGrades}
-              disabled={saving}
-              style={{
-                padding: '12px 24px',
-                background: saving ? '#9ca3af' : '#dc2626',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: saving ? 'not-allowed' : 'pointer',
-                fontWeight: '600',
-                fontSize: '14px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}
-            >
-              <i className={`fas ${saving ? 'fa-spinner fa-spin' : 'fa-save'}`}></i>
-              {saving ? 'Đang lưu...' : 'Lưu tất cả điểm số'}
-            </button>
+            <div style={{ marginTop: '20px', textAlign: 'center' }}>
+              <button
+                onClick={handleSaveGrades}
+                disabled={saving}
+                style={{
+                  padding: '12px 24px',
+                  background: saving ? '#9ca3af' : '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  fontWeight: '600',
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <i className={`fas ${saving ? 'fa-spinner fa-spin' : 'fa-save'}`}></i>
+                {saving ? 'Đang lưu...' : 'Lưu tất cả điểm số'}
+              </button>
+            </div>
           )}
+        </div>
+      ) : (
+        /* Hiển thị khi không có học viên */
+        <div style={{
+          textAlign: 'center',
+          padding: '40px',
+          color: '#6b7280',
+          background: '#f9fafb',
+          border: '1px solid #e5e7eb',
+          borderRadius: '8px'
+        }}>
+          <i className="fas fa-users" style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}></i>
+          <h3 style={{ margin: '0 0 8px 0' }}>Chưa có học viên nào</h3>
+          <p style={{ margin: 0 }}>Học viên sẽ xuất hiện ở đây khi đăng ký vào lớp học này.</p>
         </div>
       )}
     </div>

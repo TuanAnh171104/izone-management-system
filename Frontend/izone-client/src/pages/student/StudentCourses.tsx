@@ -8,6 +8,7 @@ import {
   FaMedal,
   FaChevronRight,
 } from "react-icons/fa";
+import ClassSelectionModal from '../../components/ClassSelectionModal';
 import '../../styles/Management.css';
 
 interface KhoaHoc {
@@ -50,6 +51,9 @@ const StudentCourses: React.FC = () => {
   const [dangKyLops, setDangKyLops] = useState<DangKyLop[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<number>(0);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedKhoaHocId, setSelectedKhoaHocId] = useState<number>(0);
+  const [selectedKhoaHocName, setSelectedKhoaHocName] = useState<string>('');
 
   useEffect(() => {
     loadData();
@@ -161,6 +165,31 @@ const StudentCourses: React.FC = () => {
       console.error('Lỗi khi đăng ký khóa học:', error);
       alert('Có lỗi xảy ra khi đăng ký khóa học');
     }
+  };
+
+  const handleOpenModal = (khoaHocId: number, khoaHocName: string) => {
+    setSelectedKhoaHocId(khoaHocId);
+    setSelectedKhoaHocName(khoaHocName);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedKhoaHocId(0);
+    setSelectedKhoaHocName('');
+  };
+
+  const handleRegistrationSuccess = () => {
+    loadData(); // Tải lại dữ liệu sau khi đăng ký thành công
+  };
+
+  const getHocVienId = (): number => {
+    const userInfo = localStorage.getItem('userInfo');
+    if (userInfo) {
+      const hocVienInfo = JSON.parse(userInfo);
+      return hocVienInfo.hocVienID || 0;
+    }
+    return 0;
   };
 
   if (loading) {
@@ -434,7 +463,11 @@ const StudentCourses: React.FC = () => {
                     </div>
 
                     <div className="info-right">
-                      <button className="btn-register">
+                      <button
+                        className="btn-register"
+                        onClick={() => relatedCourse && handleOpenModal(relatedCourse.khoaHocID, relatedCourse.tenKhoaHoc)}
+                        disabled={!relatedCourse}
+                      >
                         Đăng ký khóa học
                       </button>
                     </div>
@@ -453,6 +486,16 @@ const StudentCourses: React.FC = () => {
           <p>Vui lòng liên hệ quản trị viên để thêm khóa học</p>
         </div>
       )}
+
+      {/* Class Selection Modal */}
+      <ClassSelectionModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        khoaHocId={selectedKhoaHocId}
+        khoaHocName={selectedKhoaHocName}
+        hocVienId={getHocVienId()}
+        onRegistrationSuccess={handleRegistrationSuccess}
+      />
     </div>
   );
 };

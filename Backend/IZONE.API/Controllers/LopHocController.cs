@@ -98,6 +98,125 @@ namespace IZONE.API.Controllers
             return Ok(lopHocs);
         }
 
+        // GET: api/LopHoc/registration-info
+        [HttpGet("registration-info")]
+        public async Task<ActionResult<IEnumerable<object>>> GetLopHocForRegistration()
+        {
+            try
+            {
+                _logger.LogInformation("=== BẮT ĐẦU LẤY THÔNG TIN LỚP HỌC CHO ĐĂNG KÝ ===");
+
+                // Sử dụng raw SQL query với eager loading để đảm bảo lấy đầy đủ thông tin
+                var sql = @"
+                    SELECT
+                        l.LopID, l.KhoaHocID, l.GiangVienID, l.DiaDiemID,
+                        l.NgayBatDau, l.NgayKetThuc, l.CaHoc, l.NgayHocTrongTuan,
+                        l.DonGiaBuoiDay, l.ThoiLuongGio, l.SoLuongToiDa, l.TrangThai,
+
+                        -- Thông tin khóa học
+                        k.KhoaHocID as KhoaHoc_KhoaHocID,
+                        k.TenKhoaHoc, k.SoBuoi, k.HocPhi, k.DonGiaTaiLieu,
+
+                        -- Thông tin giảng viên
+                        g.GiangVienID as GiangVien_GiangVienID,
+                        g.HoTen, g.ChuyenMon,
+
+                        -- Thông tin địa điểm
+                        d.DiaDiemID as DiaDiem_DiaDiemID,
+                        d.TenCoSo, d.DiaChi, d.SucChua
+
+                    FROM LopHoc l
+                    LEFT JOIN KhoaHoc k ON l.KhoaHocID = k.KhoaHocID
+                    LEFT JOIN GiangVien g ON l.GiangVienID = g.GiangVienID
+                    LEFT JOIN DiaDiem d ON l.DiaDiemID = d.DiaDiemID
+                    WHERE l.TrangThai = 'ChuaBatDau'
+                    AND l.NgayBatDau >= CAST(GETDATE() AS DATE)
+                    ORDER BY l.NgayBatDau";
+
+                var lopHocs = new List<object>();
+                var connection = _context.Database.GetDbConnection();
+
+                await connection.OpenAsync();
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = sql;
+                    command.CommandType = System.Data.CommandType.Text;
+
+                    using (var reader = await command.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            var lopHoc = new
+                            {
+                                lopID = reader.GetInt32(0),
+                                khoaHocID = reader.GetInt32(1),
+                                giangVienID = reader.GetInt32(2),
+                                diaDiemID = reader.IsDBNull(3) ? null : (int?)reader.GetInt32(3),
+                                ngayBatDau = reader.GetDateTime(4).ToString("yyyy-MM-dd"),
+                                ngayKetThuc = reader.IsDBNull(5) ? "" : reader.GetDateTime(5).ToString("yyyy-MM-dd"),
+                                caHoc = reader.IsDBNull(6) ? "" : reader.GetString(6),
+                                ngayHocTrongTuan = reader.IsDBNull(7) ? "" : reader.GetString(7),
+                                donGiaBuoiDay = reader.IsDBNull(8) ? 0 : reader.GetDecimal(8),
+                                thoiLuongGio = reader.IsDBNull(9) ? 1.5m : reader.GetDecimal(9),
+                                soLuongToiDa = reader.IsDBNull(10) ? 0 : reader.GetInt32(10),
+                                trangThai = reader.IsDBNull(11) ? "ChuaBatDau" : reader.GetString(11),
+
+                                // Navigation properties
+                                khoaHoc = new
+                                {
+                                    khoaHocID = reader.GetInt32(12),
+                                    tenKhoaHoc = reader.IsDBNull(13) ? "" : reader.GetString(13),
+                                    soBuoi = reader.IsDBNull(14) ? 0 : reader.GetInt32(14),
+                                    hocPhi = reader.IsDBNull(15) ? 0 : reader.GetDecimal(15),
+                                    donGiaTaiLieu = reader.IsDBNull(16) ? 0 : reader.GetDecimal(16)
+                                },
+
+                                giangVien = new
+                                {
+                                    giangVienID = reader.GetInt32(17),
+                                    hoTen = reader.IsDBNull(18) ? "" : reader.GetString(18),
+                                    chuyenMon = reader.IsDBNull(19) ? "" : reader.GetString(19)
+                                },
+
+                                diaDiem = reader.IsDBNull(20) ? null : new
+                                {
+                                    diaDiemID = reader.GetInt32(20),
+                                    tenCoSo = reader.IsDBNull(21) ? "" : reader.GetString(21),
+                                    diaChi = reader.IsDBNull(22) ? "" : reader.GetString(22),
+                                    sucChua = reader.IsDBNull(23) ? 0 : reader.GetInt32(23)
+                                }
+                            };
+
+                            lopHocs.Add(lopHoc);
+                        }
+                    }
+                }
+
+                await connection.CloseAsync();
+
+                _logger.LogInformation("=== HOÀN THÀNH LẤY THÔNG TIN LỚP HỌC CHO ĐĂNG KÝ ===");
+                _logger.LogInformation("Tìm thấy {Count} lớp học cho đăng ký", lopHocs.Count);
+
+                // Log chi tiết 3 lớp đầu tiên để debug
+                foreach (var lop in lopHocs.Take(3))
+                {
+                    dynamic lopObj = lop;
+                    _logger.LogInformation("Lớp ID {LopID}: TenKhoaHoc={TenKhoaHoc}, HoTenGV={HoTenGV}, TenCoSo={TenCoSo}",
+                        (object)lopObj.lopID,
+                        (object)(lopObj.khoaHoc?.tenKhoaHoc ?? "NULL"),
+                        (object)(lopObj.giangVien?.hoTen ?? "NULL"),
+                        (object)(lopObj.diaDiem?.tenCoSo ?? "NULL"));
+                }
+
+                return Ok(lopHocs);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Lỗi khi lấy thông tin lớp học cho đăng ký");
+                return StatusCode(500, new { message = "Không thể tải thông tin lớp học cho đăng ký", error = ex.Message });
+            }
+        }
+
         // GET: api/LopHoc/student/{hocVienID}/paginated
         [HttpGet("student/{hocVienID}/paginated")]
         public async Task<ActionResult<object>> GetLopHocByStudentPaginated(

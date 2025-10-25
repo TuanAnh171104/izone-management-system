@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace IZONE.Core.Models
 {
@@ -30,9 +31,11 @@ namespace IZONE.Core.Models
 
         // Navigation properties
         [ForeignKey("HocVienID")]
-        public virtual HocVien HocVien { get; set; } = null!;
+        [JsonIgnore]
+        public virtual HocVien? HocVien { get; set; }
 
         [ForeignKey("LopID")]
-        public virtual LopHoc LopHoc { get; set; } = null!;
+        [JsonIgnore]
+        public virtual LopHoc? LopHoc { get; set; }
     }
 }

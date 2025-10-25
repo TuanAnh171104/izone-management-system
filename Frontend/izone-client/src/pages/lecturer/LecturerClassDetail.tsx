@@ -855,14 +855,36 @@ const ScheduleChangeTab: React.FC<ScheduleChangeTabProps> = ({ lopId, classInfo,
     try {
       console.log('📢 Bắt đầu gửi thông báo cho học viên về việc đổi lịch...');
 
-      // 1. Lấy danh sách học viên trong lớp
-      const studentsData = await lopHocService.getStudentsWithStats(classInfo.lopID);
-      const students = studentsData.students;
+      // 1. Lấy danh sách đăng ký lớp (đơn giản hơn, tránh lỗi 500)
+      const dangKyLops = await dangKyLopService.getByLopId(classInfo.lopID);
 
-      if (students.length === 0) {
+      if (dangKyLops.length === 0) {
         console.log('⚠️ Không có học viên nào trong lớp để gửi thông báo');
         return;
       }
+
+      // 2. Lấy thông tin học viên từ danh sách đăng ký
+      const students = await Promise.all(
+        dangKyLops.map(async (dangKy) => {
+          try {
+            const hocVien = await hocVienService.getById(dangKy.hocVienID);
+            return {
+              hocVienID: hocVien.hocVienID,
+              hoTen: hocVien.hoTen,
+              email: hocVien.email,
+              soDienThoai: hocVien.sdt
+            };
+          } catch (error) {
+            console.warn(`⚠️ Không thể lấy thông tin học viên ${dangKy.hocVienID}:`, error);
+            return {
+              hocVienID: dangKy.hocVienID,
+              hoTen: `Học viên ${dangKy.hocVienID}`,
+              email: null,
+              soDienThoai: null
+            };
+          }
+        })
+      );
 
       // 2. Tạo nội dung thông báo chi tiết
       const oldBuoiHoc = selectedBuoiHoc;
@@ -914,13 +936,13 @@ Cảm ơn sự hợp tác của quý học viên!`;
         }
       }
 
-      // 4. Gửi thông báo tổng hợp cho cả lớp (backup)
-      try {
-        await thongBaoService.sendClassNotification(classInfo.lopID, notificationContent);
-        console.log('✅ Đã gửi thông báo tổng hợp cho cả lớp');
-      } catch (error) {
-        console.error('❌ Lỗi gửi thông báo tổng hợp:', error);
-      }
+      // // 4. Gửi thông báo tổng hợp cho cả lớp (backup)
+      // try {
+      //   await thongBaoService.sendClassNotification(classInfo.lopID, notificationContent);
+      //   console.log('✅ Đã gửi thông báo tổng hợp cho cả lớp');
+      // } catch (error) {
+      //   console.error('❌ Lỗi gửi thông báo tổng hợp:', error);
+      // }
 
       // 5. Thông báo kết quả
       if (successCount > 0) {
