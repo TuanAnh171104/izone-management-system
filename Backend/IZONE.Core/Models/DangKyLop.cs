@@ -52,4 +52,12 @@ namespace IZONE.Core.Models
         public virtual ICollection<ThanhToan> ThanhToans { get; set; }
         public virtual ICollection<BaoLuu> BaoLuus { get; set; }
     }
+
+    // DTO for continue learning request
+    public class ContinueLearningRequest
+    {
+        public int OriginalDangKyID { get; set; }
+        public int NewLopID { get; set; }
+        public int HocVienID { get; set; }
+    }
 }

@@ -106,14 +106,16 @@ const StudentClassDetail: React.FC = () => {
 
       // Kiểm tra số buổi còn lại thực tế
       console.log('🔍 Kiểm tra số buổi còn lại...');
-      const attendanceResponse = await diemDanhService.getByHocVienAndLopId(user.hocVienID, dangKyLop.lopID);
 
-      if (Array.isArray(attendanceResponse)) {
-        const totalSessions = attendanceResponse.length;
-        const attendedSessions = attendanceResponse.filter(record => record.coMat).length;
-        const soBuoiConLai = totalSessions - attendedSessions;
+      // Lấy danh sách buổi học của lớp
+      const buoiHocResponse = await buoiHocService.getByLopId(dangKyLop.lopID);
 
-        console.log(`📊 Số buổi còn lại: ${soBuoiConLai} buổi (${attendedSessions}/${totalSessions})`);
+      if (Array.isArray(buoiHocResponse)) {
+        const totalSessions = buoiHocResponse.length;
+        const completedSessions = buoiHocResponse.filter(session => session.trangThai === 'DaDienRa').length;
+        const soBuoiConLai = totalSessions - completedSessions;
+
+        console.log(`📊 Số buổi còn lại: ${soBuoiConLai} buổi (${completedSessions}/${totalSessions} buổi đã diễn ra)`);
 
         // Kiểm tra điều kiện bảo lưu
         if (soBuoiConLai < 5) {
@@ -150,7 +152,7 @@ const StudentClassDetail: React.FC = () => {
         }
 
       } else {
-        alert('Không thể lấy thông tin điểm danh để kiểm tra số buổi còn lại');
+        alert('Không thể lấy thông tin buổi học để kiểm tra số buổi còn lại');
         return;
       }
 
@@ -357,21 +359,33 @@ const StudentClassDetail: React.FC = () => {
 
   const getBaoLuuStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'active':
-      case 'đang áp dụng':
+      case 'daduyet':
+      case 'đã duyệt':
         return { backgroundColor: '#dcfce7', color: '#166534' };
-      case 'pending':
-      case 'chờ duyệt':
+      case 'dangchoduyet':
+      case 'đang chờ duyệt':
         return { backgroundColor: '#fef3c7', color: '#92400e' };
-      case 'completed':
-      case 'hoàn thành':
+      case 'dasudung':
+      case 'đã sử dụng':
         return { backgroundColor: '#e0e7ff', color: '#3730a3' };
-      case 'rejected':
+      case 'tuchoi':
       case 'từ chối':
         return { backgroundColor: '#fee2e2', color: '#dc2626' };
       default:
         return { backgroundColor: '#f3f4f6', color: '#374151' };
     }
+  };
+
+  const isReservationExpired = (baoLuu: BaoLuu): boolean => {
+    return baoLuu.hanBaoLuu ? new Date(baoLuu.hanBaoLuu) < new Date() : false;
+  };
+
+  const getDaysUntilExpiration = (baoLuu: BaoLuu): number => {
+    if (!baoLuu.hanBaoLuu) return 0;
+    const expirationDate = new Date(baoLuu.hanBaoLuu);
+    const today = new Date();
+    const diffTime = expirationDate.getTime() - today.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
   if (loading) {

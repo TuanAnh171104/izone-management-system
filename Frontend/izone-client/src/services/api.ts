@@ -359,6 +359,12 @@ export interface ThanhToan {
   ghiChu?: string | null;
 }
 
+export interface ContinueLearningRequest {
+  originalDangKyID: number;
+  newLopID: number;
+  hocVienID: number;
+}
+
 // DiemDanh Service
 export const diemDanhService = {
   // Get all attendance records
@@ -563,6 +569,48 @@ export const dangKyLopService = {
   // Delete registration
   delete: async (id: number): Promise<void> => {
     await apiClient.delete(`/DangKyLop/${id}`);
+  },
+
+  // Continue learning (register for new class after reservation)
+  continueLearning: async (request: ContinueLearningRequest): Promise<any> => {
+    const response = await apiClient.post<any>('/DangKyLop/continue-learning', request);
+    return response.data;
+  },
+
+  // Check eligibility to retake a class
+  checkEligibilityToRetake: async (dangKyId: number): Promise<any> => {
+    const response = await apiClient.get<any>(`/DangKyLop/${dangKyId}/eligibility-to-retake`);
+    return response.data;
+  },
+
+  // Get available classes for retake
+  getAvailableClassesForRetake: async (dangKyId: number): Promise<any> => {
+    const response = await apiClient.get<any>(`/DangKyLop/${dangKyId}/available-classes-for-retake`);
+    return response.data;
+  },
+
+  // Register for retake class
+  retakeClass: async (request: ContinueLearningRequest): Promise<any> => {
+    const response = await apiClient.post<any>('/DangKyLop/retake-class', request);
+    return response.data;
+  },
+
+  // Check eligibility to change class
+  checkEligibilityToChange: async (dangKyId: number): Promise<any> => {
+    const response = await apiClient.get<any>(`/DangKyLop/${dangKyId}/eligibility-to-change`);
+    return response.data;
+  },
+
+  // Get available classes for change
+  getAvailableClassesForChange: async (dangKyId: number): Promise<any> => {
+    const response = await apiClient.get<any>(`/DangKyLop/${dangKyId}/available-classes-for-change`);
+    return response.data;
+  },
+
+  // Change class
+  changeClass: async (request: ContinueLearningRequest): Promise<any> => {
+    const response = await apiClient.post<any>('/DangKyLop/change-class', request);
+    return response.data;
   },
 };
 
@@ -1480,6 +1528,12 @@ export const baoLuuService = {
   // Reject reservation
   reject: async (id: number, lyDo: string): Promise<void> => {
     await apiClient.put(`/BaoLuu/${id}/reject`, { lyDo });
+  },
+
+  // Get available classes for continuing studies
+  getAvailableClassesForContinuing: async (dangKyId: number): Promise<any[]> => {
+    const response = await apiClient.get<any[]>(`/BaoLuu/${dangKyId}/available-classes`);
+    return response.data;
   },
 };
 

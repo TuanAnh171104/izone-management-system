@@ -9,5 +9,7 @@ namespace IZONE.Core.Interfaces
         Task<IEnumerable<BaoLuu>> GetExpiredBaoLuuAsync();
         Task<IEnumerable<BaoLuu>> GetPendingApprovalAsync();
         Task<BaoLuu?> GetActiveBaoLuuByDangKyIdAsync(int dangKyId);
+        Task<bool> IsReservationValidForContinuingAsync(int dangKyId);
+        Task<bool> CanContinueLearningAsync(int dangKyId, int newLopId);
     }
 }

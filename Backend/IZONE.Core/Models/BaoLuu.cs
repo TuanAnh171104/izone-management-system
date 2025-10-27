@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace IZONE.Core.Models
 {
@@ -36,7 +37,24 @@ namespace IZONE.Core.Models
         public string? LyDo { get; set; }
 
         // Navigation properties
+        [JsonIgnore]
         [ForeignKey("DangKyID")]
-        public virtual DangKyLop DangKyLop { get; set; } = null!;
+        public virtual DangKyLop? DangKyLop { get; set; }
+    }
+
+    // DTO for approve request
+    public class ApproveBaoLuuRequest
+    {
+        [Required]
+        [StringLength(100)]
+        public string NguoiDuyet { get; set; } = string.Empty;
+    }
+
+    // DTO for reject request
+    public class RejectBaoLuuRequest
+    {
+        [Required]
+        [StringLength(255)]
+        public string LyDo { get; set; } = string.Empty;
     }
 }

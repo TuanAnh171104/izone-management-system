@@ -66,5 +66,41 @@ namespace IZONE.Infrastructure.Repositories
                 .ThenInclude(dk => dk.HocVien)
                 .FirstOrDefaultAsync(bl => bl.DangKyID == dangKyId && bl.TrangThai == "DaDuyet");
         }
+
+        public async Task<bool> IsReservationValidForContinuingAsync(int dangKyId)
+        {
+            var baoLuu = await _context.BaoLuus
+                .FirstOrDefaultAsync(bl =>
+                    bl.DangKyID == dangKyId &&
+                    bl.TrangThai == "DaDuyet" &&
+                    bl.HanBaoLuu > DateTime.Now);
+
+            return baoLuu != null;
+        }
+
+        public async Task<bool> CanContinueLearningAsync(int dangKyId, int newLopId)
+        {
+            // Kiểm tra bảo lưu có hợp lệ không
+            var isValid = await IsReservationValidForContinuingAsync(dangKyId);
+            if (!isValid) return false;
+
+            // Kiểm tra lớp mới có cùng khóa học không
+            var originalDangKy = await _context.DangKyLops
+                .Include(dk => dk.LopHoc)
+                .ThenInclude(l => l.KhoaHoc)
+                .FirstOrDefaultAsync(dk => dk.DangKyID == dangKyId);
+
+            if (originalDangKy?.LopHoc?.KhoaHoc == null) return false;
+
+            var newClass = await _context.LopHocs
+                .Include(l => l.KhoaHoc)
+                .FirstOrDefaultAsync(l => l.LopID == newLopId);
+
+            if (newClass?.KhoaHoc == null) return false;
+
+            // Phải cùng khóa học và khác lớp cũ
+            return originalDangKy.LopHoc.KhoaHocID == newClass.KhoaHocID &&
+                   originalDangKy.LopID != newLopId;
+        }
     }
 }
