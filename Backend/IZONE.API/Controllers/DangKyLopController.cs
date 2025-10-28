@@ -280,6 +280,41 @@ namespace IZONE.API.Controllers
                     return BadRequest("Class has not ended yet. Cannot retake unfinished class.");
                 }
 
+                // **THÊM KIỂM TRA: Học viên đã học lại từ lớp gốc này chưa**
+                // Tìm các đăng ký miễn phí khác cùng khóa học được tạo sau ngày kết thúc lớp gốc
+                var existingRetakes = await _context.DangKyLops
+                    .Include(dk => dk.LopHoc)
+                    .Where(dk => dk.HocVienID == dangKy.HocVienID
+                             && dk.LopHoc.KhoaHocID == dangKy.LopHoc.KhoaHocID
+                             && dk.DangKyID != dangKyId  // Không tính chính nó
+                             && dk.NgayDangKy > dangKy.LopHoc.NgayKetThuc  // Tạo sau khi kết thúc
+                             && !dk.ThanhToans.Any()) // Không có bản ghi thanh toán = miễn phí
+                    .ToListAsync();
+
+                // Nếu đã có đăng ký học lại miễn phí đang hoạt động, không cho học lại tiếp
+                var hasActiveRetake = existingRetakes
+                    .Any(dk => dk.TrangThaiDangKy == "DangHoc" || dk.TrangThaiDangKy == "DaBaoLuu");
+
+                if (hasActiveRetake)
+                {
+                    return Ok(new
+                    {
+                        dangKyID = dangKy.DangKyID,
+                        lopID = dangKy.LopID,
+                        hocVienID = dangKy.HocVienID,
+                        tenLop = dangKy.LopHoc?.KhoaHoc?.TenKhoaHoc ?? "Unknown",
+                        ngayKetThuc = dangKy.LopHoc?.NgayKetThuc?.ToString("yyyy-MM-dd"),
+
+                        // Kết quả học tập
+                        canRetake = false,
+                        reason = "Đã thực hiện học lại từ lớp này. Không thể học lại tiếp.",
+
+                        // Thông tin bổ sung
+                        hasActiveRetake = true,
+                        totalRetakes = existingRetakes.Count
+                    });
+                }
+
                 // 3. Tính điểm trung bình theo công thức (giữa kỳ + cuối kỳ*2)/3
                 var diemSoList = await _context.DiemSos
                     .Where(ds => ds.HocVienID == dangKy.HocVienID && ds.LopID == dangKy.LopID)
@@ -651,11 +686,34 @@ namespace IZONE.API.Controllers
                         canChange = false,
                         reason = "Chỉ có thể đổi lớp đang diễn ra",
                         sessionsAttended = 0,
-                        maxSessionsAllowed = 1
+                        maxSessionsAllowed = 1,
+                        isFreeRegistration = false
                     });
                 }
 
-                // 3. Tính số buổi đã học (chỉ cần buổi đã diễn ra)
+                // 3. KIỂM TRA ĐĂNG KÝ MIỄN PHÍ - KHÔNG CHO ĐỔI LỚP
+                // Nếu không có bản ghi ThanhToan nào liên kết = đăng ký miễn phí
+                var hasPayment = await _context.ThanhToans
+                    .AnyAsync(t => t.DangKyID == dangKyId);
+
+                if (!hasPayment)
+                {
+                    return Ok(new
+                    {
+                        dangKyID = dangKy.DangKyID,
+                        lopID = dangKy.LopID,
+                        hocVienID = dangKy.HocVienID,
+                        tenLop = dangKy.LopHoc?.KhoaHoc?.TenKhoaHoc ?? "Unknown",
+                        trangThaiLop = dangKy.LopHoc?.TrangThai ?? "Unknown",
+                        canChange = false,
+                        reason = "Không được phép đổi lớp từ đăng ký miễn phí (học lại/bảo lưu)",
+                        sessionsAttended = 0,
+                        maxSessionsAllowed = 1,
+                        isFreeRegistration = true
+                    });
+                }
+
+                // 4. Tính số buổi đã học (chỉ cần buổi đã diễn ra)
                 var sessionsAttended = await _context.BuoiHocs
                     .CountAsync(bh => bh.LopID == dangKy.LopID
                         && bh.TrangThai == "DaDienRa"
@@ -686,7 +744,8 @@ namespace IZONE.API.Controllers
                         tenKhoaHoc = dangKy.LopHoc?.KhoaHoc?.TenKhoaHoc,
                         hocPhi = dangKy.LopHoc?.KhoaHoc?.HocPhi,
                         ngayBatDau = dangKy.LopHoc?.NgayBatDau.ToString("yyyy-MM-dd")
-                    }
+                    },
+                    isFreeRegistration = false
                 };
 
                 return Ok(result);

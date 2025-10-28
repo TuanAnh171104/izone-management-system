@@ -834,27 +834,32 @@ const StudentMyClasses: React.FC = () => {
                     // Check if class is in progress (DangDienRa) - show change class button
                     if (classItem.trangThai === 'DangDienRa' && registration) {
                       const canChange = changeEligibilityInfo?.dangKyID === registration.dangKyID ? changeEligibilityInfo?.canChange : true;
+                      const isFreeRegistration = changeEligibilityInfo?.dangKyID === registration.dangKyID ? changeEligibilityInfo?.isFreeRegistration : false;
 
                       return (
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
                             className="btn-change"
                             onClick={() => handleChangeClass(registration.dangKyID)}
-                            disabled={!canChange}
+                            disabled={!canChange || isFreeRegistration}
                             style={{
                               padding: '8px 16px',
                               border: 'none',
                               borderRadius: '6px',
                               fontSize: '12px',
                               fontWeight: '600',
-                              cursor: canChange ? 'pointer' : 'not-allowed',
-                              opacity: canChange ? 1 : 0.6,
-                              background: canChange
+                              cursor: (canChange && !isFreeRegistration) ? 'pointer' : 'not-allowed',
+                              opacity: (canChange && !isFreeRegistration) ? 1 : 0.6,
+                              background: (canChange && !isFreeRegistration)
                                 ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
                                 : '#6b7280',
                               color: 'white'
                             }}
-                            title={!canChange ? (changeEligibilityInfo?.reason || 'Không đủ điều kiện đổi lớp') : 'Đổi sang lớp khác'}
+                            title={!canChange
+                              ? (changeEligibilityInfo?.reason || 'Không đủ điều kiện đổi lớp')
+                              : isFreeRegistration
+                                ? 'Không thể đổi lớp từ đăng ký miễn phí (học lại/bảo lưu)'
+                                : 'Đổi sang lớp khác'}
                           >
                             <i className="fas fa-exchange-alt"></i> Đổi lớp
                           </button>
