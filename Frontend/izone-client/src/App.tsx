@@ -17,6 +17,7 @@ import AdminDiaDiemList from './pages/admin/AdminDiaDiemList';
 import AdminBaoLuuList from './pages/admin/AdminBaoLuuList';
 import AdminThongBaoList from './pages/admin/AdminThongBaoList';
 import AdminReports from './pages/admin/AdminReports';
+import AdminPrediction from './pages/admin/AdminPrediction';
 // Lecturer imports
 import LecturerLayout from './pages/lecturer/LecturerLayout';
 import LecturerDashboard from './pages/lecturer/LecturerDashboard';
@@ -98,6 +99,7 @@ const AppContent: React.FC = () => {
             <Route path="bao-luu" element={<AdminBaoLuuList />} />
             <Route path="thong-bao" element={<AdminThongBaoList />} />
             <Route path="bao-cao" element={<AdminReports />} />
+            <Route path="du-bao" element={<AdminPrediction />} />
           </Route>
           {/* Lecturer routes */}
           <Route path="/lecturer/*" element={<LecturerLayout />}>

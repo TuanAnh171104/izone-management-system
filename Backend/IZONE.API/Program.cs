@@ -8,6 +8,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using IZONE.API;
 using IZONE.Infrastructure.Data;
 using IZONE.Infrastructure.Repositories;
 using IZONE.Infrastructure.Services;
@@ -55,6 +58,7 @@ builder.Services.AddScoped<IChiPhiImportService, ChiPhiImportService>();
 builder.Services.AddScoped<IThueMatBangRepository, ThueMatBangRepository>();
 builder.Services.AddScoped<IBaoCaoRepository, BaoCaoRepository>();
 builder.Services.AddScoped<IBaoCaoService, BaoCaoService>();
+builder.Services.AddScoped<IPredictionService, PredictionService>();
 
 // Add CORS
 builder.Services.AddCors(options =>
@@ -91,9 +95,12 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = false,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("your-secret-key-here"))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("your-very-long-secret-key-here-that-is-at-least-32-characters-long"))
     };
 });
+
+// Add JWT Token Service
+builder.Services.AddSingleton<JwtTokenService>();
 
 // Add Swagger
 builder.Services.AddEndpointsApiExplorer();

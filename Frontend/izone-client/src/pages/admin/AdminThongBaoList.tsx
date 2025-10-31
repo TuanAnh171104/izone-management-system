@@ -107,6 +107,9 @@ const AdminThongBaoList: React.FC = () => {
   const applyFilters = () => {
     let filtered = [...thongBaoList];
 
+    // Sort by newest first
+    filtered.sort((a, b) => new Date(b.ngayGui).getTime() - new Date(a.ngayGui).getTime());
+
     // Lọc theo loại người nhận
     if (typeFilter !== 'all') {
       filtered = filtered.filter(thongBao => thongBao.loaiNguoiNhan === typeFilter);
@@ -579,6 +582,30 @@ const AdminThongBaoList: React.FC = () => {
               GỬI THÔNG BÁO
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Statistics */}
+      <div className="stats-container" style={{
+        background: '#e9ecef',
+        padding: '15px',
+        marginBottom: '20px',
+        borderRadius: '8px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <div>
+          <strong>Tổng số thông báo:</strong> {filteredThongBaoList.length}
+        </div>
+        <div>
+          <strong>Toàn hệ thống:</strong> {filteredThongBaoList.filter(tb => tb.loaiNguoiNhan === 'ToanHeThong').length}
+        </div>
+        <div>
+          <strong>Theo lớp:</strong> {filteredThongBaoList.filter(tb => tb.loaiNguoiNhan === 'LopHoc').length}
+        </div>
+        <div>
+          <strong>Cá nhân:</strong> {filteredThongBaoList.filter(tb => tb.loaiNguoiNhan === 'HocVien' || tb.loaiNguoiNhan === 'GiangVien').length}
         </div>
       </div>
 

@@ -20,14 +20,16 @@ namespace IZONE.API.Controllers
         private readonly IGiangVienRepository _giangVienRepository;
         private readonly IZONEDbContext _context;
         private readonly ILogger<TaiKhoanController> _logger;
+        private readonly JwtTokenService _jwtTokenService;
 
-        public TaiKhoanController(ITaiKhoanRepository taiKhoanRepository, IHocVienRepository hocVienRepository, IGiangVienRepository giangVienRepository, IZONEDbContext context, ILogger<TaiKhoanController> logger)
+        public TaiKhoanController(ITaiKhoanRepository taiKhoanRepository, IHocVienRepository hocVienRepository, IGiangVienRepository giangVienRepository, IZONEDbContext context, ILogger<TaiKhoanController> logger, JwtTokenService jwtTokenService)
         {
             _taiKhoanRepository = taiKhoanRepository;
             _hocVienRepository = hocVienRepository;
             _giangVienRepository = giangVienRepository;
             _context = context;
             _logger = logger;
+            _jwtTokenService = jwtTokenService;
         }
 
         [HttpGet]
@@ -95,10 +97,16 @@ namespace IZONE.API.Controllers
                         VaiTro = "Admin"
                     };
 
+                    var token = _jwtTokenService.GenerateToken(taiKhoanDev.TaiKhoanID, taiKhoanDev.VaiTro);
+
                     return Ok(new {
-                        TaiKhoanID = taiKhoanDev.TaiKhoanID,
-                        Email = taiKhoanDev.Email,
-                        VaiTro = taiKhoanDev.VaiTro
+                        token = token,
+                        user = new
+                        {
+                            taiKhoanID = taiKhoanDev.TaiKhoanID,
+                            email = taiKhoanDev.Email,
+                            vaiTro = taiKhoanDev.VaiTro
+                        }
                     });
                 }
 
@@ -128,6 +136,9 @@ namespace IZONE.API.Controllers
                     return Unauthorized("Mật khẩu không đúng");
                 }
 
+                string jwtToken = "";
+                object user = null;
+
                 // Nếu là giảng viên, lấy thông tin giảng viên đầy đủ
                 if (taiKhoan.VaiTro == "GiangVien")
                 {
@@ -137,14 +148,16 @@ namespace IZONE.API.Controllers
                     if (giangVien != null)
                     {
                         _logger.LogInformation($"Tìm thấy giảng viên: ID={giangVien.GiangVienID}, HoTen={giangVien.HoTen}");
-                        return Ok(new {
-                            TaiKhoanID = taiKhoan.TaiKhoanID,
-                            Email = taiKhoan.Email,
-                            VaiTro = taiKhoan.VaiTro,
-                            GiangVienID = giangVien.GiangVienID,
-                            HoTen = giangVien.HoTen,
-                            ChuyenMon = giangVien.ChuyenMon
-                        });
+                        jwtToken = _jwtTokenService.GenerateToken(taiKhoan.TaiKhoanID, taiKhoan.VaiTro, giangVien.GiangVienID);
+                        user = new
+                        {
+                            taiKhoanID = taiKhoan.TaiKhoanID,
+                            email = taiKhoan.Email,
+                            vaiTro = taiKhoan.VaiTro,
+                            giangVienID = giangVien.GiangVienID,
+                            hoTen = giangVien.HoTen,
+                            chuyenMon = giangVien.ChuyenMon
+                        };
                     }
                     else
                     {
@@ -158,24 +171,36 @@ namespace IZONE.API.Controllers
                     var hocVien = await _hocVienRepository.GetByEmailAsync(taiKhoan.Email);
                     if (hocVien != null)
                     {
-                        return Ok(new {
-                            TaiKhoanID = taiKhoan.TaiKhoanID,
-                            Email = taiKhoan.Email,
-                            VaiTro = taiKhoan.VaiTro,
-                            HocVienID = hocVien.HocVienID,
-                            HoTen = hocVien.HoTen,
-                            NgaySinh = hocVien.NgaySinh,
-                            SDT = hocVien.SDT,
-                            TaiKhoanVi = hocVien.TaiKhoanVi
-                        });
+                        jwtToken = _jwtTokenService.GenerateToken(taiKhoan.TaiKhoanID, taiKhoan.VaiTro, hocVienId: hocVien.HocVienID);
+                        user = new
+                        {
+                            taiKhoanID = taiKhoan.TaiKhoanID,
+                            email = taiKhoan.Email,
+                            vaiTro = taiKhoan.VaiTro,
+                            hocVienID = hocVien.HocVienID,
+                            hoTen = hocVien.HoTen,
+                            ngaySinh = hocVien.NgaySinh,
+                            sdt = hocVien.SDT,
+                            taiKhoanVi = hocVien.TaiKhoanVi
+                        };
                     }
                 }
 
-                // Trả về thông tin cơ bản cho các vai trò khác
+                // Nếu chưa có token (trường hợp vai trò khác), tạo token cơ bản
+                if (string.IsNullOrEmpty(jwtToken))
+                {
+                    jwtToken = _jwtTokenService.GenerateToken(taiKhoan.TaiKhoanID, taiKhoan.VaiTro);
+                    user = new
+                    {
+                        taiKhoanID = taiKhoan.TaiKhoanID,
+                        email = taiKhoan.Email,
+                        vaiTro = taiKhoan.VaiTro
+                    };
+                }
+
                 return Ok(new {
-                    TaiKhoanID = taiKhoan.TaiKhoanID,
-                    Email = taiKhoan.Email,
-                    VaiTro = taiKhoan.VaiTro
+                    token = jwtToken,
+                    user = user
                 });
             }
             catch (Exception ex)

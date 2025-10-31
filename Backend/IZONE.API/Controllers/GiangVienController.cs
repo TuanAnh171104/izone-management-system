@@ -6,6 +6,8 @@ using IZONE.Infrastructure.Data;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.Globalization;
+
 
 namespace IZONE.API.Controllers
 {
@@ -100,6 +102,159 @@ namespace IZONE.API.Controllers
             }
             return giangVienId;
         }
+
+        // ====== START: Thêm API Dashboard Giảng Viên ======
+
+[HttpGet("dashboard/today")]
+[Authorize]
+public async Task<IActionResult> GetTodaySessions()
+{
+    try
+    {
+        var giangVienId = GetCurrentGiangVienId();
+        var today = DateTime.Today;
+
+        var buoiHocs = await _context.BuoiHocs
+            .Include(b => b.LopHoc).ThenInclude(l => l.KhoaHoc)
+            .Include(b => b.LopHoc).ThenInclude(l => l.DiaDiem)
+            .Where(b => b.LopHoc.GiangVienID == giangVienId && b.NgayHoc.Date == today)
+            .Select(b => new
+            {
+                b.BuoiHocID,
+                b.NgayHoc,
+                b.ThoiGianBatDau,
+                b.ThoiGianKetThuc,
+                b.TrangThai,
+                LopID = b.LopHoc.LopID,
+                TenKhoaHoc = b.LopHoc.KhoaHoc.TenKhoaHoc,
+                DiaDiem = b.LopHoc.DiaDiem.TenCoSo
+            })
+            .ToListAsync();
+
+        return Ok(new { date = today, sessions = buoiHocs });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new { message = "Lỗi server", error = ex.Message });
+    }
+}
+
+[HttpGet("dashboard/attendance-weekly")]
+[Authorize]
+public async Task<IActionResult> GetWeeklyAttendance([FromQuery] int weeks = 12)
+{
+    try
+    {
+        var giangVienId = GetCurrentGiangVienId();
+        var endDate = DateTime.Today;
+        var startDate = endDate.AddDays(-7 * weeks + 1);
+
+        var attendanceList = await _context.DiemDanhs
+            .Include(dd => dd.BuoiHoc).ThenInclude(b => b.LopHoc)
+            .Where(dd => dd.BuoiHoc.LopHoc.GiangVienID == giangVienId
+                      && dd.BuoiHoc.NgayHoc >= startDate
+                      && dd.BuoiHoc.NgayHoc <= endDate)
+            .Select(dd => new { dd.CoMat, dd.BuoiHoc.NgayHoc })
+            .ToListAsync();
+
+        var cal = CultureInfo.InvariantCulture.Calendar;
+        var grouped = attendanceList
+            .GroupBy(a => cal.GetWeekOfYear(a.NgayHoc, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday))
+            .Select(g => new
+            {
+                Week = g.Key,
+                AttendanceRate = g.Count(x => x.CoMat) * 100m / g.Count()
+            })
+            .OrderBy(x => x.Week)
+            .ToList();
+
+        return Ok(grouped);
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new { message = "Lỗi server", error = ex.Message });
+    }
+}
+
+[HttpGet("dashboard/pending-tasks")]
+[Authorize]
+public async Task<IActionResult> GetPendingTasks()
+{
+    try
+    {
+        var giangVienId = GetCurrentGiangVienId();
+        var today = DateTime.Today;
+
+        // Tìm những buổi học đã qua mà chưa có điểm danh (tức là chưa được thực hiện)
+        var overdueSessions = await _context.BuoiHocs
+            .Include(b => b.LopHoc)
+            .ThenInclude(l => l.KhoaHoc)
+            .Where(b => b.LopHoc.GiangVienID == giangVienId
+                     && b.NgayHoc < today
+                     && !_context.DiemDanhs.Any(dd => dd.BuoiHocID == b.BuoiHocID)) // Chưa có điểm danh nào
+            .Select(b => new
+            {
+                b.BuoiHocID,
+                ngayHoc = b.NgayHoc.ToString("yyyy-MM-dd"), // Format ngày cho JS
+                tenLop = $"Lớp {b.LopHoc.LopID}",
+                lopID = b.LopHoc.LopID,
+                tenKhoaHoc = b.LopHoc.KhoaHoc.TenKhoaHoc
+            })
+            .ToListAsync();
+
+        // Get completed classes first
+        var completedClassIds = await _context.LopHocs
+            .Where(l => l.GiangVienID == giangVienId && l.TrangThai == "DaKetThuc")
+            .Select(l => l.LopID)
+            .ToListAsync();
+
+        // Calculate final grade stats for each class
+        var classesMissingFinal = new List<dynamic>();
+        foreach (var classId in completedClassIds)
+        {
+            var enrolledStudents = await _context.DangKyLops
+                .Where(dk => dk.LopID == classId)
+                .Select(dk => dk.HocVienID)
+                .ToListAsync();
+
+            var studentsWithFinalGrade = await _context.DiemSos
+                .CountAsync(ds => ds.LopID == classId && enrolledStudents.Contains(ds.HocVienID) && ds.LoaiDiem == "CuoiKy");
+
+            var totalEnrolled = enrolledStudents.Count;
+            var missingCount = totalEnrolled - studentsWithFinalGrade;
+
+            if (missingCount > 0)
+            {
+                var classInfo = await _context.LopHocs
+                    .Where(l => l.LopID == classId)
+                    .Select(l => new {
+                        l.LopID,
+                        TenLop = $"Lớp {l.LopID}",
+                        TenKhoaHoc = l.KhoaHoc.TenKhoaHoc
+                    })
+                    .FirstAsync();
+
+                classesMissingFinal.Add(new
+                {
+                    LopID = classInfo.LopID,
+                    TenLop = classInfo.TenLop,
+                    TenKhoaHoc = classInfo.TenKhoaHoc,
+                    SoDangKy = totalEnrolled,
+                    SoDiemDaNhap = studentsWithFinalGrade,
+                    MissingCount = missingCount
+                });
+            }
+        }
+
+        return Ok(new { overdueSessions, classesMissingFinal });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new { message = "Lỗi server", error = ex.Message });
+    }
+}
+// ====== END: Thêm API Dashboard Giảng Viên ======
+
 
         /// <summary>
         /// Lấy thông tin dashboard giáo viên

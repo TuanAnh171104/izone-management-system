@@ -95,6 +95,9 @@ const AdminBaoLuuList: React.FC = () => {
   const applyFilters = () => {
     let filtered = [...baoLuuList];
 
+    // Sort by newest first
+    filtered.sort((a, b) => new Date(b.ngayBaoLuu).getTime() - new Date(a.ngayBaoLuu).getTime());
+
     // Lọc theo trạng thái
     if (statusFilter !== 'all') {
       filtered = filtered.filter(baoLuu => baoLuu.trangThai === statusFilter);
@@ -120,6 +123,7 @@ const AdminBaoLuuList: React.FC = () => {
     const statusConfig = {
       'DangChoDuyet': { color: '#ffc107', text: 'Đang chờ duyệt', icon: '⏳' },
       'DaDuyet': { color: '#28a745', text: 'Đã duyệt', icon: '✅' },
+      'DaSuDung': { color: '#007bff', text: 'Đã sử dụng', icon: '📚' },
       'TuChoi': { color: '#dc3545', text: 'Từ chối', icon: '❌' },
       'HetHan': { color: '#6c757d', text: 'Hết hạn', icon: '⏰' }
     };
@@ -255,9 +259,37 @@ const AdminBaoLuuList: React.FC = () => {
             <option value="all">Tất cả trạng thái</option>
             <option value="DangChoDuyet">Đang chờ duyệt</option>
             <option value="DaDuyet">Đã duyệt</option>
+            <option value="DaSuDung">Đã sử dụng</option>
             <option value="TuChoi">Từ chối</option>
             <option value="HetHan">Hết hạn</option>
           </select>
+        </div>
+      </div>
+
+      {/* Statistics */}
+      <div className="stats-container" style={{
+        background: '#e9ecef',
+        padding: '15px',
+        marginBottom: '20px',
+        borderRadius: '8px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <div>
+          <strong>Tổng đơn bảo lưu:</strong> {filteredBaoLuuList.length}
+        </div>
+        <div>
+          <strong>Đang chờ duyệt:</strong> {filteredBaoLuuList.filter(baol => baol.trangThai === 'DangChoDuyet').length}
+        </div>
+        <div>
+          <strong>Đã duyệt:</strong> {filteredBaoLuuList.filter(baol => baol.trangThai === 'DaDuyet').length}
+        </div>
+        <div>
+          <strong>Từ chối:</strong> {filteredBaoLuuList.filter(baol => baol.trangThai === 'TuChoi').length}
+        </div>
+        <div>
+          <strong>Hết hạn:</strong> {filteredBaoLuuList.filter(baol => baol.trangThai === 'HetHan').length}
         </div>
       </div>
 

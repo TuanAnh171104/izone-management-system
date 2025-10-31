@@ -9,13 +9,40 @@ interface PaginationInfo {
   itemsPerPage: number;
 }
 
+interface FilterState {
+  startDate: string;
+  endDate: string;
+  khoaHocID: string;
+  giangVienID: string;
+  diaDiemID: string;
+  trangThai: string;
+  minDonGia: string;
+  maxDonGia: string;
+  caHoc: string;
+  ngayHocTrongTuan: string;
+}
+
 const AdminLopHocList: React.FC = () => {
   const [lopHocs, setLopHocs] = useState<LopHoc[]>([]);
+  const [filters, setFilters] = useState<FilterState>({
+    startDate: '',
+    endDate: '',
+    khoaHocID: '',
+    giangVienID: '',
+    diaDiemID: '',
+    trangThai: '',
+    minDonGia: '',
+    maxDonGia: '',
+    caHoc: '',
+    ngayHocTrongTuan: ''
+  });
   const [khoaHocs, setKhoaHocs] = useState<KhoaHoc[]>([]);
   const [giangViens, setGiangViens] = useState<GiangVien[]>([]);
   const [diaDiems, setDiaDiems] = useState<DiaDiem[]>([]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingLopHoc, setEditingLopHoc] = useState<LopHoc | null>(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filteredLopHocs, setFilteredLopHocs] = useState<LopHoc[]>([]);
   const [editFormData, setEditFormData] = useState({
     khoaHocID: 0,
     giangVienID: 0,
@@ -330,28 +357,120 @@ const AdminLopHocList: React.FC = () => {
     }));
   };
 
-  // Pagination logic
-  const filteredLopHocs = lopHocs.filter(lopHoc => {
-    // Add null checks for lopHoc properties
-    if (!lopHoc) return false;
+  // Filter and sort logic
+  const applyFilters = () => {
+    if (!lopHocs || lopHocs.length === 0) return;
 
-    const khoaHocName = getKhoaHocName(lopHoc.khoaHocID || 0);
-    const giangVienName = getGiangVienName(lopHoc.giangVienID || 0);
-    const diaDiemName = getDiaDiemName(lopHoc.diaDiemID);
-    const ngayHocTrongTuan = (lopHoc.ngayHocTrongTuan || '').toString();
-    const caHoc = (lopHoc.caHoc || '').toString();
-    const diaDiem = (lopHoc.diaDiemID || '').toString();
-    const donGiaBuoiDay = (lopHoc.donGiaBuoiDay || '').toString();
+    let filtered = [...lopHocs];
 
-    return (lopHoc.lopID || '').toString().includes(searchTerm) ||
-           (khoaHocName && khoaHocName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-           (giangVienName && giangVienName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-           (diaDiemName && diaDiemName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-           ngayHocTrongTuan.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           caHoc.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           diaDiem.includes(searchTerm) ||
-           donGiaBuoiDay.includes(searchTerm);
-  });
+    // Sort by newest first
+    filtered.sort((a, b) => new Date(b.ngayBatDau).getTime() - new Date(a.ngayBatDau).getTime());
+
+    // Apply filters if any filters are active
+    const hasActiveFilters =
+      filters.startDate ||
+      filters.endDate ||
+      filters.khoaHocID ||
+      filters.giangVienID ||
+      filters.diaDiemID ||
+      filters.trangThai ||
+      filters.minDonGia ||
+      filters.maxDonGia ||
+      filters.caHoc ||
+      filters.ngayHocTrongTuan ||
+      searchTerm;
+
+    if (hasActiveFilters) {
+      // Date range filter
+      if (filters.startDate) {
+        filtered = filtered.filter(lopHoc => new Date(lopHoc.ngayBatDau) >= new Date(filters.startDate));
+      }
+      if (filters.endDate) {
+        filtered = filtered.filter(lopHoc => new Date(lopHoc.ngayBatDau) <= new Date(filters.endDate));
+      }
+
+      // Course filter
+      if (filters.khoaHocID) {
+        filtered = filtered.filter(lopHoc => lopHoc.khoaHocID === parseInt(filters.khoaHocID));
+      }
+
+      // Lecturer filter
+      if (filters.giangVienID) {
+        filtered = filtered.filter(lopHoc => lopHoc.giangVienID === parseInt(filters.giangVienID));
+      }
+
+      // Location filter
+      if (filters.diaDiemID) {
+        filtered = filtered.filter(lopHoc => lopHoc.diaDiemID === parseInt(filters.diaDiemID));
+      }
+
+      // Status filter
+      if (filters.trangThai) {
+        filtered = filtered.filter(lopHoc => lopHoc.trangThai === filters.trangThai);
+      }
+
+      // Price range filter
+      if (filters.minDonGia) {
+        filtered = filtered.filter(lopHoc => (lopHoc.donGiaBuoiDay || 0) >= parseInt(filters.minDonGia));
+      }
+      if (filters.maxDonGia) {
+        filtered = filtered.filter(lopHoc => (lopHoc.donGiaBuoiDay || 0) <= parseInt(filters.maxDonGia));
+      }
+
+      // Schedule filters
+      if (filters.caHoc) {
+        filtered = filtered.filter(lopHoc => lopHoc.caHoc && lopHoc.caHoc.toLowerCase().includes(filters.caHoc.toLowerCase()));
+      }
+      if (filters.ngayHocTrongTuan) {
+        filtered = filtered.filter(lopHoc =>
+          lopHoc.ngayHocTrongTuan && lopHoc.ngayHocTrongTuan.toLowerCase().includes(filters.ngayHocTrongTuan.toLowerCase())
+        );
+      }
+
+      // Search term filter
+      if (searchTerm) {
+        filtered = filtered.filter(lopHoc =>
+          (lopHoc.lopID || '').toString().includes(searchTerm) ||
+          getKhoaHocName(lopHoc.khoaHocID).toLowerCase().includes(searchTerm.toLowerCase()) ||
+          getGiangVienName(lopHoc.giangVienID).toLowerCase().includes(searchTerm.toLowerCase()) ||
+          getDiaDiemName(lopHoc.diaDiemID).toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (lopHoc.ngayHocTrongTuan || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (lopHoc.caHoc || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (lopHoc.donGiaBuoiDay || '').toString().includes(searchTerm)
+        );
+      }
+    }
+
+    setFilteredLopHocs(filtered);
+  };
+
+  useEffect(() => {
+    applyFilters();
+  }, [lopHocs, filters, searchTerm]);
+
+  const handleFilterChange = (field: keyof FilterState, value: string) => {
+    setFilters(prev => ({ ...prev, [field]: value }));
+    setPagination(prev => ({ ...prev, currentPage: 1 }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      startDate: '',
+      endDate: '',
+      khoaHocID: '',
+      giangVienID: '',
+      diaDiemID: '',
+      trangThai: '',
+      minDonGia: '',
+      maxDonGia: '',
+      caHoc: '',
+      ngayHocTrongTuan: ''
+    });
+    setSearchTerm('');
+  };
+
+  // Pagination logic - use filtered results
+  const filteredLopHocsData = filteredLopHocs;
 
   // Calculate pagination
   const totalFilteredItems = filteredLopHocs.length;
@@ -503,40 +622,56 @@ const AdminLopHocList: React.FC = () => {
               onClick={() => setShowAddForm(true)}
               className="btn btn-primary"
               style={{
-                padding: '8px 16px',
+                padding: '14px 28px',
                 background: 'white',
                 color: '#dc2626',
                 border: '2px solid #dc2626',
-                borderRadius: '15px',
+                borderRadius: '10px',
                 cursor: 'pointer',
-                fontWeight: '600',
+                fontWeight: 'bold',
                 fontSize: '14px',
-                boxShadow: '0 4px 15px rgba(220, 38, 38, 0.2)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
                 justifyContent: 'center',
-                whiteSpace: 'nowrap',
-                minWidth: '120px',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)';
-                e.currentTarget.style.color = 'white';
-                e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
-                e.currentTarget.style.boxShadow = '0 8px 25px rgba(220, 38, 38, 0.3)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = 'white';
-                e.currentTarget.style.color = '#dc2626';
-                e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                e.currentTarget.style.boxShadow = '0 4px 15px rgba(220, 38, 38, 0.2)';
+                boxShadow: '0 4px 15px rgba(220, 38, 38, 0.3)',
+                transition: 'all 0.3s ease',
+                minWidth: '180px',
+                whiteSpace: 'nowrap'
               }}
             >
               <i className="fas fa-plus"></i>
               <span>Thêm lớp học mới</span>
             </button>
           )}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            style={{
+              padding: '14px 28px',
+              background: 'white',
+              color: '#dc2626',
+              border: '2px solid #dc2626',
+              borderRadius: '10px',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              justifyContent: 'center',
+              boxShadow: '0 4px 15px rgba(220, 38, 38, 0.3)',
+              transition: 'all 0.3s ease',
+              minWidth: '160px',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <i className="fas fa-filter"></i>
+            <span>Bộ lọc</span>
+            <i className={`fas ${showFilters ? 'fa-chevron-up' : 'fa-chevron-down'}`} style={{
+              transition: 'transform 0.3s ease',
+              transform: showFilters ? 'rotate(180deg)' : 'rotate(0deg)'
+            }}></i>
+          </button>
           <div className="search-container">
             <input
               type="text"
@@ -551,6 +686,328 @@ const AdminLopHocList: React.FC = () => {
               }}
             />
           </div>
+        </div>
+      </div>
+
+      {/* Advanced Filters Panel */}
+      {showFilters && (
+        <div className="filters-container" style={{
+          background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
+          padding: '25px',
+          marginBottom: '25px',
+          borderRadius: '15px',
+          border: '1px solid #dc2626',
+          boxShadow: '0 10px 25px rgba(220, 38, 38, 0.15)',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '20px',
+              marginBottom: '20px'
+            }}>
+              <div className="filter-group">
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontWeight: '600',
+                  color: 'white',
+                  fontSize: '14px',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                }}>
+                  Từ ngày:
+                </label>
+                <input
+                  type="date"
+                  value={filters.startDate}
+                  onChange={(e) => handleFilterChange('startDate', e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid rgba(255,255,255,0.2)',
+                    borderRadius: '10px',
+                    background: 'rgba(255,255,255,0.9)',
+                    color: '#333',
+                    fontSize: '14px',
+                    transition: 'all 0.3s ease',
+                    backdropFilter: 'blur(10px)'
+                  }}
+                />
+              </div>
+
+              <div className="filter-group">
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontWeight: '600',
+                  color: 'white',
+                  fontSize: '14px',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                }}>
+                  Đến ngày:
+                </label>
+                <input
+                  type="date"
+                  value={filters.endDate}
+                  onChange={(e) => handleFilterChange('endDate', e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid rgba(255,255,255,0.2)',
+                    borderRadius: '10px',
+                    background: 'rgba(255,255,255,0.9)',
+                    color: '#333',
+                    fontSize: '14px',
+                    transition: 'all 0.3s ease',
+                    backdropFilter: 'blur(10px)'
+                  }}
+                />
+              </div>
+
+              <div className="filter-group">
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontWeight: '600',
+                  color: 'white',
+                  fontSize: '14px',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                }}>
+                  Khóa học:
+                </label>
+                <select
+                  value={filters.khoaHocID}
+                  onChange={(e) => handleFilterChange('khoaHocID', e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid rgba(255,255,255,0.2)',
+                    borderRadius: '10px',
+                    background: 'rgba(255,255,255,0.9)',
+                    color: '#333',
+                    fontSize: '14px',
+                    transition: 'all 0.3s ease',
+                    backdropFilter: 'blur(10px)'
+                  }}
+                >
+                  <option value="">Tất cả</option>
+                  {khoaHocs.map(khoaHoc => (
+                    <option key={khoaHoc.khoaHocID} value={khoaHoc.khoaHocID}>
+                      {khoaHoc.tenKhoaHoc}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="filter-group">
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontWeight: '600',
+                  color: 'white',
+                  fontSize: '14px',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                }}>
+                  Giảng viên:
+                </label>
+                <select
+                  value={filters.giangVienID}
+                  onChange={(e) => handleFilterChange('giangVienID', e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid rgba(255,255,255,0.2)',
+                    borderRadius: '10px',
+                    background: 'rgba(255,255,255,0.9)',
+                    color: '#333',
+                    fontSize: '14px',
+                    transition: 'all 0.3s ease',
+                    backdropFilter: 'blur(10px)'
+                  }}
+                >
+                  <option value="">Tất cả</option>
+                  {giangViens.map(giangVien => (
+                    <option key={giangVien.giangVienID} value={giangVien.giangVienID}>
+                      {giangVien.hoTen}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="filter-group">
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontWeight: '600',
+                  color: 'white',
+                  fontSize: '14px',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                }}>
+                  Địa điểm:
+                </label>
+                <select
+                  value={filters.diaDiemID}
+                  onChange={(e) => handleFilterChange('diaDiemID', e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid rgba(255,255,255,0.2)',
+                    borderRadius: '10px',
+                    background: 'rgba(255,255,255,0.9)',
+                    color: '#333',
+                    fontSize: '14px',
+                    transition: 'all 0.3s ease',
+                    backdropFilter: 'blur(10px)'
+                  }}
+                >
+                  <option value="">Tất cả</option>
+                  {diaDiems.map((diaDiem: DiaDiem) => (
+                    <option key={diaDiem.diaDiemID} value={diaDiem.diaDiemID}>
+                      {diaDiem.tenCoSo}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="filter-group">
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontWeight: '600',
+                  color: 'white',
+                  fontSize: '14px',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                }}>
+                  Trạng thái:
+                </label>
+                <select
+                  value={filters.trangThai}
+                  onChange={(e) => handleFilterChange('trangThai', e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid rgba(255,255,255,0.2)',
+                    borderRadius: '10px',
+                    background: 'rgba(255,255,255,0.9)',
+                    color: '#333',
+                    fontSize: '14px',
+                    transition: 'all 0.3s ease',
+                    backdropFilter: 'blur(10px)'
+                  }}
+                >
+                  <option value="">Tất cả</option>
+                  <option value="ChuaBatDau">Chưa bắt đầu</option>
+                  <option value="DangDienRa">Đang diễn ra</option>
+                  <option value="DaKetThuc">Đã kết thúc</option>
+                  <option value="DaHuy">Đã hủy</option>
+                </select>
+              </div>
+
+              <div className="filter-group">
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontWeight: '600',
+                  color: 'white',
+                  fontSize: '14px',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                }}>
+                  Giá từ (VNĐ):
+                </label>
+                <input
+                  type="number"
+                  value={filters.minDonGia}
+                  onChange={(e) => handleFilterChange('minDonGia', e.target.value)}
+                  placeholder="0"
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid rgba(255,255,255,0.2)',
+                    borderRadius: '10px',
+                    background: 'rgba(255,255,255,0.9)',
+                    color: '#333',
+                    fontSize: '14px',
+                    transition: 'all 0.3s ease',
+                    backdropFilter: 'blur(10px)'
+                  }}
+                />
+              </div>
+
+              <div className="filter-group">
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontWeight: '600',
+                  color: 'white',
+                  fontSize: '14px',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                }}>
+                  Giá đến (VNĐ):
+                </label>
+                <input
+                  type="number"
+                  value={filters.maxDonGia}
+                  onChange={(e) => handleFilterChange('maxDonGia', e.target.value)}
+                  placeholder="Không giới hạn"
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid rgba(255,255,255,0.2)',
+                    borderRadius: '10px',
+                    background: 'rgba(255,255,255,0.9)',
+                    color: '#333',
+                    fontSize: '14px',
+                    transition: 'all 0.3s ease',
+                    backdropFilter: 'blur(10px)'
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '10px',
+              paddingTop: '15px',
+              borderTop: '1px solid rgba(255,255,255,0.2)'
+            }}>
+              <button
+                onClick={clearFilters}
+                style={{
+                  padding: '10px 20px',
+                  background: 'rgba(255,255,255,0.2)',
+                  color: 'white',
+                  border: '2px solid rgba(255,255,255,0.3)',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  backdropFilter: 'blur(10px)'
+                }}
+              >
+                <i className="fas fa-times" style={{ marginRight: '5px' }}></i>
+                Xóa bộ lọc
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Statistics */}
+      <div className="stats-container" style={{
+        background: '#e9ecef',
+        padding: '15px',
+        marginBottom: '20px',
+        borderRadius: '8px',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center'
+      }}>
+        <div>
+          <strong>Tổng số lớp học:</strong> {filteredLopHocs.length} lớp
         </div>
       </div>
 

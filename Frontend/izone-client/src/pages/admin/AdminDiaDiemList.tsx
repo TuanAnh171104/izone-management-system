@@ -378,7 +378,22 @@ const AdminDiaDiemList: React.FC = () => {
         <h2>Quản lý Cơ sở vật chất</h2>
       </div>
 
-      <div style={{ display: 'flex', gap: '20px', height: 'calc(100vh - 200px)', overflow: 'hidden' }}>
+      {/* Statistics */}
+      <div className="stats-container" style={{
+        background: '#e9ecef',
+        padding: '15px',
+        marginBottom: '20px',
+        borderRadius: '8px',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center'
+      }}>
+        <div>
+          <strong>Tổng số cơ sở:</strong> {filteredDiaDiemList.length} cơ sở
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: '20px', height: 'calc(100vh - 220px)', overflow: 'hidden' }}>
         {/* Khu vực A: Danh sách cơ sở (với nút sửa/xóa inline) */}
         <div style={{ flex: '1', background: 'white', borderRadius: '8px', padding: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
           <div style={{ marginBottom: '20px' }}>

@@ -648,10 +648,11 @@ export const taiKhoanService = {
       const raw = response.data;
       console.log('🔍 Raw response data:', raw);
 
-      // Chuẩn hóa dữ liệu trả về thành LoginResponse
+
+      // Return directly from backend response (no mocking needed)
       const mapped: LoginResponse = {
-        token: 'mock-token',
-        user: {
+        token: response.data.token,
+        user: response.data.user || {
           taiKhoanID: raw.taiKhoanID || raw.TaiKhoanID,
           email: raw.email || raw.Email,
           vaiTro: raw.vaiTro || raw.VaiTro,
@@ -1186,7 +1187,7 @@ export const giangVienService = {
     const response = await apiClient.get<GiangVienWithEmailDto[]>('/GiangVien');
     return response.data;
   },
-
+  
   // Get lecturer by ID
   getById: async (id: number): Promise<GiangVien> => {
     const response = await apiClient.get<GiangVien>(`/GiangVien/${id}`);
@@ -1225,6 +1226,22 @@ export const giangVienService = {
   // Delete lecturer
   delete: async (id: number): Promise<void> => {
     await apiClient.delete(`/GiangVien/${id}`);
+  },
+  getTodaySessions: async (): Promise<any> => {
+    const response = await apiClient.get('/GiangVien/dashboard/today');
+    return response.data;
+  },
+
+  // Lấy tỷ lệ chuyên cần theo tuần
+  getWeeklyAttendance: async (weeks: number = 12): Promise<any> => {
+    const response = await apiClient.get(`/GiangVien/dashboard/attendance-weekly?weeks=${weeks}`);
+    return response.data;
+  },
+
+  // Lấy nhiệm vụ chờ xử lý (chưa điểm danh, chưa nhập điểm)
+  getPendingTasks: async (): Promise<any> => {
+    const response = await apiClient.get('/GiangVien/dashboard/pending-tasks');
+    return response.data;
   },
 
   // Create lecturer with account
@@ -1460,6 +1477,7 @@ export const thueMatBangService = {
   },
 };
 
+
 // BaoLuu Service
 export const baoLuuService = {
   // Get all reservations
@@ -1533,6 +1551,37 @@ export const baoLuuService = {
   // Get available classes for continuing studies
   getAvailableClassesForContinuing: async (dangKyId: number): Promise<any[]> => {
     const response = await apiClient.get<any[]>(`/BaoLuu/${dangKyId}/available-classes`);
+    return response.data;
+  },
+};
+
+// Prediction Service
+export const predictionService = {
+  // Lấy danh sách dự báo học viên bỏ học
+  getStudentDropoutPredictions: async (): Promise<{
+    success: boolean;
+    message: string;
+    data: any[];
+    count: number;
+  }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      message: string;
+      data: any[];
+      count: number;
+    }>('/Prediction/student-dropout-predictions');
+    return response.data;
+  },
+
+  // Load model ML
+  loadModel: async (): Promise<{
+    success: boolean;
+    message: string;
+  }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      message: string;
+    }>('/Prediction/load-model');
     return response.data;
   },
 };
