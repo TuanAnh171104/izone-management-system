@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import '../../styles/Student.css';
 
 interface UserInfo {
@@ -16,6 +16,7 @@ interface UserInfo {
 
 const StudentLayout: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
 
   useEffect(() => {
@@ -50,10 +51,10 @@ const StudentLayout: React.FC = () => {
           <img src="/assets/izone-logo-color.png" alt="IZONE" />
         </div>
         <nav className="student-nav">
-          <NavLink to="/student" end className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
-            Tổng quan
-          </NavLink>
-          <NavLink to="/student/courses" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
+          <NavLink
+            to="/student/courses"
+            className={() => (location.pathname === '/student' || location.pathname === '/student/courses') ? 'nav-item active' : 'nav-item'}
+          >
             Tất cả khóa học
           </NavLink>
           <NavLink to="/student/my-classes" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>

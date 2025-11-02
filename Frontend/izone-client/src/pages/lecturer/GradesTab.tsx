@@ -131,7 +131,7 @@ const GradesTab: React.FC<GradesTabProps> = ({ lopId, students, classStatus, onR
           lopID: lopId,
           loaiDiem: activeGradeType,
           diem: parseFloat(data.diem.toFixed(2)), // Đảm bảo format decimal
-          ketQua: data.diem >= 5 ? 'Dat' : 'KhongDat'
+          ketQua: data.diem >= 5 ? 'Dat' : 'Truot'
         }));
 
       console.log('📤 Đang gửi điểm số:', gradesToSave);

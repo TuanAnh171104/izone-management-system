@@ -161,14 +161,14 @@ namespace IZONE.API.Controllers
                     {
                         // Cập nhật điểm hiện có
                         existingDiemSo.Diem = diemSo.Diem;
-                        existingDiemSo.KetQua = diemSo.Diem >= 5 ? "Dat" : "KhongDat";
+                        existingDiemSo.KetQua = diemSo.Diem >= 5 ? "Dat" : "Truot";
                         await _diemSoRepository.UpdateAsync(existingDiemSo);
                         createdDiemSos.Add(existingDiemSo);
                     }
                     else
                     {
                         // Tạo điểm mới
-                        diemSo.KetQua = diemSo.Diem >= 5 ? "Dat" : "KhongDat";
+                        diemSo.KetQua = diemSo.Diem >= 5 ? "Dat" : "Truot";
                         var newDiemSo = await _diemSoRepository.AddAsync(diemSo);
                         createdDiemSos.Add(newDiemSo);
                     }

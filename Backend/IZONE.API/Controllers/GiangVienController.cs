@@ -204,7 +204,7 @@ public async Task<IActionResult> GetPendingTasks()
 
         // Get completed classes first
         var completedClassIds = await _context.LopHocs
-            .Where(l => l.GiangVienID == giangVienId && l.TrangThai == "DaKetThuc")
+            .Where(l => l.GiangVienID == giangVienId && l.TrangThai == "DangDienRa")
             .Select(l => l.LopID)
             .ToListAsync();
 
@@ -591,57 +591,60 @@ public async Task<IActionResult> GetPendingTasks()
         [HttpPost("with-account")]
         public async Task<IActionResult> CreateWithAccount([FromBody] CreateGiangVienWithAccountRequest request)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
+            return await _context.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
             {
-                // Kiểm tra email đã tồn tại chưa
-                var existingTaiKhoan = await _context.TaiKhoans.FirstOrDefaultAsync(t => t.Email == request.Email);
-                if (existingTaiKhoan != null)
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
                 {
-                    return BadRequest($"Email {request.Email} đã tồn tại trong hệ thống");
+                    // Kiểm tra email đã tồn tại chưa
+                    var existingTaiKhoan = await _context.TaiKhoans.FirstOrDefaultAsync(t => t.Email == request.Email);
+                    if (existingTaiKhoan != null)
+                    {
+                        return BadRequest($"Email {request.Email} đã tồn tại trong hệ thống");
+                    }
+
+                    // Tạo tài khoản mới
+                    var taiKhoan = new TaiKhoan
+                    {
+                        Email = request.Email,
+                        MatKhau = request.MatKhau, // Nên hash mật khẩu trong thực tế
+                        VaiTro = "GiangVien"
+                    };
+
+                    await _context.TaiKhoans.AddAsync(taiKhoan);
+                    await _context.SaveChangesAsync();
+
+                    // Tạo giảng viên với TaiKhoanID
+                    var giangVien = new GiangVien
+                    {
+                        TaiKhoanID = taiKhoan.TaiKhoanID,
+                        HoTen = request.HoTen,
+                        ChuyenMon = request.ChuyenMon
+                    };
+
+                    await _giangVienRepository.AddAsync(giangVien);
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    var result = new
+                    {
+                        giangVienID = giangVien.GiangVienID,
+                        hoTen = giangVien.HoTen,
+                        chuyenMon = giangVien.ChuyenMon,
+                        taiKhoanID = giangVien.TaiKhoanID,
+                        email = taiKhoan.Email,
+                        message = "Giảng viên và tài khoản đã được tạo thành công"
+                    };
+
+                    return CreatedAtAction(nameof(GetGiangVienById), new { id = giangVien.GiangVienID }, result);
                 }
-
-                // Tạo tài khoản mới
-                var taiKhoan = new TaiKhoan
+                catch (Exception ex)
                 {
-                    Email = request.Email,
-                    MatKhau = request.MatKhau, // Nên hash mật khẩu trong thực tế
-                    VaiTro = "GiangVien"
-                };
-
-                await _context.TaiKhoans.AddAsync(taiKhoan);
-                await _context.SaveChangesAsync();
-
-                // Tạo giảng viên với TaiKhoanID
-                var giangVien = new GiangVien
-                {
-                    TaiKhoanID = taiKhoan.TaiKhoanID,
-                    HoTen = request.HoTen,
-                    ChuyenMon = request.ChuyenMon
-                };
-
-                await _giangVienRepository.AddAsync(giangVien);
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                var result = new
-                {
-                    giangVienID = giangVien.GiangVienID,
-                    hoTen = giangVien.HoTen,
-                    chuyenMon = giangVien.ChuyenMon,
-                    taiKhoanID = giangVien.TaiKhoanID,
-                    email = taiKhoan.Email,
-                    message = "Giảng viên và tài khoản đã được tạo thành công"
-                };
-
-                return CreatedAtAction(nameof(GetGiangVienById), new { id = giangVien.GiangVienID }, result);
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                _logger.LogError(ex, "Lỗi khi tạo giảng viên kèm tài khoản");
-                return StatusCode(500, new { message = "Lỗi khi tạo giảng viên kèm tài khoản", error = ex.Message });
-            }
+                    await transaction.RollbackAsync();
+                    _logger.LogError(ex, "Lỗi khi tạo giảng viên kèm tài khoản");
+                    return StatusCode(500, new { message = "Lỗi khi tạo giảng viên kèm tài khoản", error = ex.Message });
+                }
+            });
         }
 
         /// <summary>
@@ -691,159 +694,162 @@ public async Task<IActionResult> GetPendingTasks()
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteGiangVien(int id)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
+            return await _context.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
             {
-                _logger.LogInformation("=== BẮT ĐẦU XÓA GIẢNG VIÊN VỚI ID: {GiangVienID} ===", id);
-
-                // Kiểm tra giảng viên có tồn tại không
-                var giangVien = await _giangVienRepository.GetByIdAsync(id);
-                if (giangVien == null)
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
                 {
-                    _logger.LogWarning("Không tìm thấy giảng viên với ID: {GiangVienID}", id);
-                    return NotFound(new { message = $"Không tìm thấy giảng viên với ID {id}" });
-                }
+                    _logger.LogInformation("=== BẮT ĐẦU XÓA GIẢNG VIÊN VỚI ID: {GiangVienID} ===", id);
 
-                _logger.LogInformation("Tìm thấy giảng viên: {HoTen} - {ChuyenMon}", giangVien.HoTen, giangVien.ChuyenMon);
-
-                // KIỂM TRA CÁC RÀNG BUỘC TRƯỚC KHI XÓA
-                _logger.LogInformation("=== KIỂM TRA CÁC RÀNG BUỘC ===");
-
-                // 1. Kiểm tra LopHoc (Restrict - không thể xóa nếu đang dạy lớp)
-                var lopHocCount = await _context.LopHocs.CountAsync(l => l.GiangVienID == id);
-                _logger.LogInformation("Số lớp học đang dạy: {Count}", lopHocCount);
-
-                if (lopHocCount > 0)
-                {
-                    var lopHocs = await _lopHocRepository.GetByGiangVienIdAsync(id);
-                    _logger.LogWarning("Không thể xóa giảng viên {GiangVienID} vì đang dạy {Count} lớp học", id, lopHocs.Count());
-                    return BadRequest(new
+                    // Kiểm tra giảng viên có tồn tại không
+                    var giangVien = await _giangVienRepository.GetByIdAsync(id);
+                    if (giangVien == null)
                     {
-                        message = $"Không thể xóa giảng viên vì đang dạy {lopHocs.Count()} lớp học. Vui lòng chuyển lớp hoặc kết thúc các lớp học trước khi xóa.",
-                        activeClasses = lopHocs.Select(l => new { l.LopID, l.KhoaHoc.TenKhoaHoc, l.TrangThai })
+                        _logger.LogWarning("Không tìm thấy giảng viên với ID: {GiangVienID}", id);
+                        return NotFound(new { message = $"Không tìm thấy giảng viên với ID {id}" });
+                    }
+
+                    _logger.LogInformation("Tìm thấy giảng viên: {HoTen} - {ChuyenMon}", giangVien.HoTen, giangVien.ChuyenMon);
+
+                    // KIỂM TRA CÁC RÀNG BUỘC TRƯỚC KHI XÓA
+                    _logger.LogInformation("=== KIỂM TRA CÁC RÀNG BUỘC ===");
+
+                    // 1. Kiểm tra LopHoc (Restrict - không thể xóa nếu đang dạy lớp)
+                    var lopHocCount = await _context.LopHocs.CountAsync(l => l.GiangVienID == id);
+                    _logger.LogInformation("Số lớp học đang dạy: {Count}", lopHocCount);
+
+                    if (lopHocCount > 0)
+                    {
+                        var lopHocs = await _lopHocRepository.GetByGiangVienIdAsync(id);
+                        _logger.LogWarning("Không thể xóa giảng viên {GiangVienID} vì đang dạy {Count} lớp học", id, lopHocs.Count());
+                        return BadRequest(new
+                        {
+                            message = $"Không thể xóa giảng viên vì đang dạy {lopHocs.Count()} lớp học. Vui lòng chuyển lớp hoặc kết thúc các lớp học trước khi xóa.",
+                            activeClasses = lopHocs.Select(l => new { l.LopID, l.KhoaHoc.TenKhoaHoc, l.TrangThai })
+                        });
+                    }
+
+                    // 2. Kiểm tra BuoiHoc thông qua LopHoc (Cascade - sẽ bị xóa tự động)
+                    var lopHocIds = await _context.LopHocs.Where(l => l.GiangVienID == id).Select(l => l.LopID).ToListAsync();
+                    var buoiHocCount = await _context.BuoiHocs.CountAsync(b => lopHocIds.Contains(b.LopID));
+                    _logger.LogInformation("Số buổi học liên quan: {Count}", buoiHocCount);
+
+                    // 3. Kiểm tra DiemDanh liên quan đến các buổi học của giảng viên
+                    var diemDanhCount = await _context.DiemDanhs.CountAsync(d => lopHocIds.Contains(d.BuoiHoc.LopID));
+                    _logger.LogInformation("Số điểm danh liên quan: {Count}", diemDanhCount);
+
+                    // 4. Kiểm tra DiemSo liên quan đến các lớp học của giảng viên (DiemSo liên kết trực tiếp với LopHoc)
+                    var diemSoCount = await _context.DiemSos.CountAsync(d => lopHocIds.Contains(d.LopID));
+                    _logger.LogInformation("Số điểm số liên quan: {Count}", diemSoCount);
+
+                    // BẮT ĐẦU XÓA THEO THỨ TỰ ĐÚNG
+                    _logger.LogInformation("=== BẮT ĐẦU XÓA DỮ LIỆU ===");
+
+                    // 1. Xóa DiemDanh liên quan đến các buổi học của giảng viên
+                    if (diemDanhCount > 0)
+                    {
+                        var deletedDiemDanh = await _context.Database.ExecuteSqlRawAsync(
+                            "DELETE dd FROM DiemDanh dd INNER JOIN BuoiHoc bh ON dd.BuoiHocID = bh.BuoiHocID INNER JOIN LopHoc lh ON bh.LopID = lh.LopID WHERE lh.GiangVienID = {0}", id);
+                        _logger.LogInformation("Đã xóa {Count} điểm danh liên quan", deletedDiemDanh);
+                    }
+
+                    // 2. Xóa DiemSo liên quan đến các lớp học của giảng viên (DiemSo liên kết trực tiếp với LopHoc)
+                    if (diemSoCount > 0)
+                    {
+                        var deletedDiemSo = await _context.Database.ExecuteSqlRawAsync(
+                            "DELETE ds FROM DiemSo ds INNER JOIN LopHoc lh ON ds.LopID = lh.LopID WHERE lh.GiangVienID = {0}", id);
+                        _logger.LogInformation("Đã xóa {Count} điểm số liên quan", deletedDiemSo);
+                    }
+
+                    // 3. Xóa BuoiHoc thông qua LopHoc (BuoiHoc không có GiangVienID trực tiếp)
+                    if (buoiHocCount > 0)
+                    {
+                        var deletedBuoiHoc = await _context.Database.ExecuteSqlRawAsync(
+                            "DELETE bh FROM BuoiHoc bh INNER JOIN LopHoc lh ON bh.LopID = lh.LopID WHERE lh.GiangVienID = {0}", id);
+                        _logger.LogInformation("Đã xóa {Count} buổi học", deletedBuoiHoc);
+                    }
+
+                    // 4. Nếu giảng viên có tài khoản liên kết, xóa tài khoản
+                    if (giangVien.TaiKhoanID.HasValue)
+                    {
+                        var taiKhoan = await _context.TaiKhoans.FindAsync(giangVien.TaiKhoanID.Value);
+                        if (taiKhoan != null)
+                        {
+                            _logger.LogInformation("Đang xóa tài khoản liên kết với ID: {TaiKhoanID}", taiKhoan.TaiKhoanID);
+                            _context.TaiKhoans.Remove(taiKhoan);
+                            _logger.LogInformation("Đã xóa tài khoản liên kết");
+                        }
+                    }
+
+                    // 5. Cuối cùng, xóa giảng viên
+                    _logger.LogInformation("Đang xóa giảng viên với ID: {GiangVienID}", id);
+                    await _giangVienRepository.DeleteAsync(giangVien);
+
+                    // Commit transaction
+                    await transaction.CommitAsync();
+
+                    _logger.LogInformation("=== GIẢNG VIÊN ĐÃ ĐƯỢC XÓA THÀNH CÔNG ===");
+                    _logger.LogInformation("GiangVienID: {GiangVienID}, HoTen: {HoTen}, ChuyenMon: {ChuyenMon}",
+                        id, giangVien.HoTen, giangVien.ChuyenMon);
+
+                    return Ok(new
+                    {
+                        message = "Giảng viên và tài khoản đã được xóa thành công",
+                        giangVienID = id,
+                        hoTen = giangVien.HoTen,
+                        chuyenMon = giangVien.ChuyenMon,
+                        taiKhoanID = giangVien.TaiKhoanID,
+                        deletedRecords = new
+                        {
+                            lopHoc = lopHocCount,
+                            buoiHoc = buoiHocCount,
+                            diemDanh = diemDanhCount,
+                            diemSo = diemSoCount
+                        }
                     });
                 }
-
-                // 2. Kiểm tra BuoiHoc thông qua LopHoc (Cascade - sẽ bị xóa tự động)
-                var lopHocIds = await _context.LopHocs.Where(l => l.GiangVienID == id).Select(l => l.LopID).ToListAsync();
-                var buoiHocCount = await _context.BuoiHocs.CountAsync(b => lopHocIds.Contains(b.LopID));
-                _logger.LogInformation("Số buổi học liên quan: {Count}", buoiHocCount);
-
-                // 3. Kiểm tra DiemDanh liên quan đến các buổi học của giảng viên
-                var diemDanhCount = await _context.DiemDanhs.CountAsync(d => lopHocIds.Contains(d.BuoiHoc.LopID));
-                _logger.LogInformation("Số điểm danh liên quan: {Count}", diemDanhCount);
-
-                // 4. Kiểm tra DiemSo liên quan đến các lớp học của giảng viên (DiemSo liên kết trực tiếp với LopHoc)
-                var diemSoCount = await _context.DiemSos.CountAsync(d => lopHocIds.Contains(d.LopID));
-                _logger.LogInformation("Số điểm số liên quan: {Count}", diemSoCount);
-
-                // BẮT ĐẦU XÓA THEO THỨ TỰ ĐÚNG
-                _logger.LogInformation("=== BẮT ĐẦU XÓA DỮ LIỆU ===");
-
-                // 1. Xóa DiemDanh liên quan đến các buổi học của giảng viên
-                if (diemDanhCount > 0)
+                catch (DbUpdateException dbEx)
                 {
-                    var deletedDiemDanh = await _context.Database.ExecuteSqlRawAsync(
-                        "DELETE dd FROM DiemDanh dd INNER JOIN BuoiHoc bh ON dd.BuoiHocID = bh.BuoiHocID INNER JOIN LopHoc lh ON bh.LopID = lh.LopID WHERE lh.GiangVienID = {0}", id);
-                    _logger.LogInformation("Đã xóa {Count} điểm danh liên quan", deletedDiemDanh);
-                }
+                    await transaction.RollbackAsync();
+                    _logger.LogError(dbEx, "Lỗi database khi xóa giảng viên với ID: {GiangVienID}", id);
 
-                // 2. Xóa DiemSo liên quan đến các lớp học của giảng viên (DiemSo liên kết trực tiếp với LopHoc)
-                if (diemSoCount > 0)
-                {
-                    var deletedDiemSo = await _context.Database.ExecuteSqlRawAsync(
-                        "DELETE ds FROM DiemSo ds INNER JOIN LopHoc lh ON ds.LopID = lh.LopID WHERE lh.GiangVienID = {0}", id);
-                    _logger.LogInformation("Đã xóa {Count} điểm số liên quan", deletedDiemSo);
-                }
-
-                // 3. Xóa BuoiHoc thông qua LopHoc (BuoiHoc không có GiangVienID trực tiếp)
-                if (buoiHocCount > 0)
-                {
-                    var deletedBuoiHoc = await _context.Database.ExecuteSqlRawAsync(
-                        "DELETE bh FROM BuoiHoc bh INNER JOIN LopHoc lh ON bh.LopID = lh.LopID WHERE lh.GiangVienID = {0}", id);
-                    _logger.LogInformation("Đã xóa {Count} buổi học", deletedBuoiHoc);
-                }
-
-                // 4. Nếu giảng viên có tài khoản liên kết, xóa tài khoản
-                if (giangVien.TaiKhoanID.HasValue)
-                {
-                    var taiKhoan = await _context.TaiKhoans.FindAsync(giangVien.TaiKhoanID.Value);
-                    if (taiKhoan != null)
+                    // Kiểm tra lỗi constraint cụ thể
+                    if (dbEx.InnerException?.Message.Contains("FOREIGN KEY") == true)
                     {
-                        _logger.LogInformation("Đang xóa tài khoản liên kết với ID: {TaiKhoanID}", taiKhoan.TaiKhoanID);
-                        _context.TaiKhoans.Remove(taiKhoan);
-                        _logger.LogInformation("Đã xóa tài khoản liên kết");
+                        return BadRequest(new
+                        {
+                            message = "Không thể xóa giảng viên vì vẫn còn dữ liệu liên quan chưa được xử lý.",
+                            error = dbEx.InnerException?.Message,
+                            solution = "Vui lòng liên hệ quản trị viên để được hỗ trợ xử lý dữ liệu ràng buộc."
+                        });
                     }
-                }
-
-                // 5. Cuối cùng, xóa giảng viên
-                _logger.LogInformation("Đang xóa giảng viên với ID: {GiangVienID}", id);
-                await _giangVienRepository.DeleteAsync(giangVien);
-
-                // Commit transaction
-                await transaction.CommitAsync();
-
-                _logger.LogInformation("=== GIẢNG VIÊN ĐÃ ĐƯỢC XÓA THÀNH CÔNG ===");
-                _logger.LogInformation("GiangVienID: {GiangVienID}, HoTen: {HoTen}, ChuyenMon: {ChuyenMon}",
-                    id, giangVien.HoTen, giangVien.ChuyenMon);
-
-                return Ok(new
-                {
-                    message = "Giảng viên và tài khoản đã được xóa thành công",
-                    giangVienID = id,
-                    hoTen = giangVien.HoTen,
-                    chuyenMon = giangVien.ChuyenMon,
-                    taiKhoanID = giangVien.TaiKhoanID,
-                    deletedRecords = new
+                    else if (dbEx.InnerException?.Message.Contains("CHECK") == true)
                     {
-                        lopHoc = lopHocCount,
-                        buoiHoc = buoiHocCount,
-                        diemDanh = diemDanhCount,
-                        diemSo = diemSoCount
+                        return BadRequest(new
+                        {
+                            message = "Dữ liệu không thỏa mãn ràng buộc kiểm tra trong database",
+                            error = dbEx.InnerException?.Message
+                        });
                     }
-                });
-            }
-            catch (DbUpdateException dbEx)
-            {
-                await transaction.RollbackAsync();
-                _logger.LogError(dbEx, "Lỗi database khi xóa giảng viên với ID: {GiangVienID}", id);
 
-                // Kiểm tra lỗi constraint cụ thể
-                if (dbEx.InnerException?.Message.Contains("FOREIGN KEY") == true)
-                {
                     return BadRequest(new
                     {
-                        message = "Không thể xóa giảng viên vì vẫn còn dữ liệu liên quan chưa được xử lý.",
-                        error = dbEx.InnerException?.Message,
-                        solution = "Vui lòng liên hệ quản trị viên để được hỗ trợ xử lý dữ liệu ràng buộc."
-                    });
-                }
-                else if (dbEx.InnerException?.Message.Contains("CHECK") == true)
-                {
-                    return BadRequest(new
-                    {
-                        message = "Dữ liệu không thỏa mãn ràng buộc kiểm tra trong database",
+                        message = "Lỗi khi xóa giảng viên khỏi database",
                         error = dbEx.InnerException?.Message
                     });
                 }
-
-                return BadRequest(new
+                catch (Exception ex)
                 {
-                    message = "Lỗi khi xóa giảng viên khỏi database",
-                    error = dbEx.InnerException?.Message
-                });
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                _logger.LogError(ex, "Lỗi không xác định khi xóa giảng viên với ID: {GiangVienID}", id);
-                return StatusCode(500, new
-                {
-                    message = "Lỗi server nội bộ khi xóa giảng viên",
-                    error = ex.Message,
-                    stackTrace = ex.StackTrace
-                });
-            }
+                    await transaction.RollbackAsync();
+                    _logger.LogError(ex, "Lỗi không xác định khi xóa giảng viên với ID: {GiangVienID}", id);
+                    return StatusCode(500, new
+                    {
+                        message = "Lỗi server nội bộ khi xóa giảng viên",
+                        error = ex.Message,
+                        stackTrace = ex.StackTrace
+                    });
+                }
+            });
         }
 
         /// <summary>

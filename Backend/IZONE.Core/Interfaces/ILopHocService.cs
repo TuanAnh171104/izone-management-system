@@ -36,5 +36,10 @@ namespace IZONE.Core.Interfaces
         /// Tạo một buổi học cụ thể
         /// </summary>
         Task<BuoiHoc> CreateBuoiHocAsync(int lopHocId, DateTime ngayHoc, TimeSpan thoiGianBatDau, TimeSpan thoiGianKetThuc);
+
+        /// <summary>
+        /// Tái tạo các buổi học tự động sau khi cập nhật thông tin lớp học
+        /// </summary>
+        Task<IEnumerable<BuoiHoc>> RecreateBuoiHocTuDongAsync(int lopHocId);
     }
 }

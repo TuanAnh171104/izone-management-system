@@ -139,6 +139,7 @@ const AdminLopHocList: React.FC = () => {
       try {
         await lopHocService.delete(id);
         setLopHocs(lopHocs.filter(l => l.lopID !== id));
+        alert('Xóa lớp học thành công!');
       } catch (error) {
         console.error('Error deleting class:', error);
         setError('Có lỗi xảy ra khi xóa lớp học');

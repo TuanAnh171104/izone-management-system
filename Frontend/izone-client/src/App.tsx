@@ -111,7 +111,7 @@ const AppContent: React.FC = () => {
           </Route>
           {/* Student routes */}
           <Route path="/student/*" element={<StudentLayout />}>
-            <Route index element={<StudentDashboard />} />
+            <Route index element={<StudentCourses />} />
             <Route path="courses" element={<StudentCourses />} />
             <Route path="my-classes" element={<StudentMyClasses />} />
             <Route path="class/:id" element={<StudentClassDetail />} />

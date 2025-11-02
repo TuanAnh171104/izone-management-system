@@ -214,7 +214,6 @@ namespace IZONE.API.Controllers
         [HttpPost("register/hocvien")]
         public async Task<ActionResult> RegisterHocVien([FromBody] RegisterHocVienModel model)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
                 // Kiểm tra cơ bản
@@ -274,8 +273,6 @@ namespace IZONE.API.Controllers
 
                 var createdHocVien = await _hocVienRepository.AddAsync(hocVien);
 
-                await transaction.CommitAsync();
-
                 return Created($"api/TaiKhoan/{createdTaiKhoan.TaiKhoanID}", new
                 {
                     taiKhoan = new
@@ -294,7 +291,6 @@ namespace IZONE.API.Controllers
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
                 _logger.LogError(ex, "Lỗi khi đăng ký tài khoản học viên");
                 return StatusCode(500, "Đã xảy ra lỗi khi xử lý yêu cầu");
             }

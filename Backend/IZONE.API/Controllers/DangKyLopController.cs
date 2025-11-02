@@ -673,8 +673,8 @@ namespace IZONE.API.Controllers
                     return NotFound($"Registration with ID {dangKyId} not found");
                 }
 
-                // 2. Kiểm tra lớp có đang diễn ra không
-                if (dangKy.LopHoc?.TrangThai != "DangDienRa")
+                // 2. Kiểm tra lớp có đang diễn ra hoặc chưa bắt đầu không
+                if (dangKy.LopHoc?.TrangThai != "ChuaBatDau" && dangKy.LopHoc?.TrangThai != "DangDienRa")
                 {
                     return Ok(new
                     {
@@ -684,7 +684,7 @@ namespace IZONE.API.Controllers
                         tenLop = dangKy.LopHoc?.KhoaHoc?.TenKhoaHoc ?? "Unknown",
                         trangThaiLop = dangKy.LopHoc?.TrangThai ?? "Unknown",
                         canChange = false,
-                        reason = "Chỉ có thể đổi lớp đang diễn ra",
+                        reason = "Chỉ có thể đổi lớp chưa bắt đầu hoặc đang diễn ra",
                         sessionsAttended = 0,
                         maxSessionsAllowed = 1,
                         isFreeRegistration = false

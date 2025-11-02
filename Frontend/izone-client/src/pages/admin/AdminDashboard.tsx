@@ -143,20 +143,86 @@ const AdminDashboard: React.FC = () => {
           .sort((a, b) => b.value - a.value);
 
         const gvById = new Map(lecturers.map((g: any) => [g.giangVienID, g] as const));
-        const classesByGV: Record<number, number> = {};
-        classes.forEach((l: any) => { classesByGV[l.giangVienID] = (classesByGV[l.giangVienID] || 0) + 1; });
 
-        const lopByIdForGrade = lopById;
-        const gvMetrics: Record<number, { totalScores: number; countScores: number; passCount: number; totalCount: number }> = {};
+        // Lọc lớp học theo khoảng thời gian (như báo cáo backend)
+        // Điều kiện: NgayBatDau >= startDate AND NgayKetThuc <= endDate
+        const filteredClasses = classes.filter((l: any) => {
+          const startDate = new Date(l.ngayBatDau);
+          const endDate = l.ngayKetThuc ? new Date(l.ngayKetThuc) : null;
+          // Phải có ngày kết thúc và cả hai ngày đều trong khoảng thời gian
+          return endDate !== null &&
+                 startDate >= dateRange.start &&
+                 endDate <= dateRange.end;
+        });
+
+        const lopByIdForGrade = new Map(filteredClasses.map((l: any) => [l.lopID, l] as const));
+
+        // Tính điểm xét tốt nghiệp cho từng học viên theo công thức đúng
+        const studentFinalResults: Array<{ hocVienID: number; lopID: number; diemXetTotNghiep: number; ketQua: string }> = [];
+
+        // Nhóm điểm theo học viên và lớp (chỉ lấy điểm của lớp đã lọc)
+        const gradesByStudentAndClass: Record<string, Array<{ loaiDiem: string; diem: number }>> = {};
         grades.forEach((d: any) => {
-          const lop = lopByIdForGrade.get(d.lopID);
+          // Chỉ xử lý điểm của lớp trong khoảng thời gian đã lọc
+          if (!lopByIdForGrade.has(d.lopID)) return;
+
+          const key = `${d.hocVienID}_${d.lopID}`;
+          if (!gradesByStudentAndClass[key]) gradesByStudentAndClass[key] = [];
+          gradesByStudentAndClass[key].push({ loaiDiem: d.loaiDiem, diem: d.diem || 0 });
+        });
+
+        // Tính điểm xét tốt nghiệp cho từng học viên
+        Object.entries(gradesByStudentAndClass).forEach(([key, studentGrades]) => {
+          const [hocVienID, lopID] = key.split('_').map(Number);
+
+          // Tìm điểm giữa kỳ và cuối kỳ
+          const diemGiuaKy = studentGrades.find(g => g.loaiDiem === 'GiuaKy' || g.loaiDiem === 'Giữa kỳ')?.diem || 0;
+          const diemCuoiKy = studentGrades.find(g => g.loaiDiem === 'CuoiKy' || g.loaiDiem === 'Cuối kỳ')?.diem || 0;
+
+          // Công thức tính điểm xét tốt nghiệp: (điểm cuối kỳ × 2 + điểm giữa kỳ) ÷ 3
+          const diemXetTotNghiep = Math.round(((diemCuoiKy * 2 + diemGiuaKy) / 3.0) * 100) / 100; // Làm tròn 2 chữ số thập phân
+
+          // Xác định kết quả: đạt nếu >= 5.5
+          const ketQua = diemXetTotNghiep >= 5.5 ? 'Dat' : 'Truot';
+
+          studentFinalResults.push({
+            hocVienID,
+            lopID,
+            diemXetTotNghiep,
+            ketQua
+          });
+        });
+
+        // Tính số lớp dạy cho từng giảng viên (chỉ lớp có điểm số trong khoảng thời gian)
+        const classesByGV: Record<number, number> = {};
+        const uniqueClassIdsByGV: Record<number, Set<number>> = {};
+
+        studentFinalResults.forEach((result) => {
+          const lop = lopByIdForGrade.get(result.lopID);
+          if (!lop) return;
+          const gv = lop.giangVienID;
+
+          if (!uniqueClassIdsByGV[gv]) uniqueClassIdsByGV[gv] = new Set();
+          uniqueClassIdsByGV[gv].add(result.lopID);
+        });
+
+        // Đếm số lớp duy nhất cho từng giảng viên
+        Object.keys(uniqueClassIdsByGV).forEach(gvId => {
+          classesByGV[Number(gvId)] = uniqueClassIdsByGV[Number(gvId)].size;
+        });
+
+        // Tính metrics cho từng giảng viên dựa trên điểm xét tốt nghiệp đã tính
+        const gvMetrics: Record<number, { totalScores: number; countScores: number; passCount: number; totalCount: number }> = {};
+        studentFinalResults.forEach((result) => {
+          const lop = lopByIdForGrade.get(result.lopID);
           if (!lop) return;
           const gv = lop.giangVienID;
           if (!gvMetrics[gv]) gvMetrics[gv] = { totalScores: 0, countScores: 0, passCount: 0, totalCount: 0 };
-          gvMetrics[gv].totalScores += (d.diem || 0);
+
+          gvMetrics[gv].totalScores += result.diemXetTotNghiep;
           gvMetrics[gv].countScores += 1;
           gvMetrics[gv].totalCount += 1;
-          if ((d.ketQua || '').toLowerCase() === 'dat') gvMetrics[gv].passCount += 1;
+          if (result.ketQua === 'Dat') gvMetrics[gv].passCount += 1;
         });
 
         const ranking = Object.keys(classesByGV).map(k => {

@@ -831,8 +831,8 @@ const StudentMyClasses: React.FC = () => {
                       );
                     }
 
-                    // Check if class is in progress (DangDienRa) - show change class button
-                    if (classItem.trangThai === 'DangDienRa' && registration) {
+                    // Check if class is not started (ChuaBatDau) or in progress (DangDienRa) - show change class button
+                    if ((classItem.trangThai === 'ChuaBatDau' || classItem.trangThai === 'DangDienRa') && registration) {
                       const canChange = changeEligibilityInfo?.dangKyID === registration.dangKyID ? changeEligibilityInfo?.canChange : true;
                       const isFreeRegistration = changeEligibilityInfo?.dangKyID === registration.dangKyID ? changeEligibilityInfo?.isFreeRegistration : false;
 

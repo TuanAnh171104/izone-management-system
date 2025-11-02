@@ -165,154 +165,157 @@ namespace IZONE.API.Controllers
         [HttpDelete("{id}")]
         public async Task<ActionResult> DeleteHocVien(int id)
         {
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
+            return await _context.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
             {
-                _logger.LogInformation("=== BẮT ĐẦU XÓA HỌC VIÊN VỚI ID: {HocVienID} ===", id);
-
-                // Kiểm tra học viên có tồn tại không
-                var hocVien = await _hocVienRepository.GetByIdAsync(id);
-                if (hocVien == null)
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
                 {
-                    _logger.LogWarning("Không tìm thấy học viên với ID: {HocVienID}", id);
-                    return NotFound(new { message = $"Không tìm thấy học viên với ID {id}" });
-                }
+                    _logger.LogInformation("=== BẮT ĐẦU XÓA HỌC VIÊN VỚI ID: {HocVienID} ===", id);
 
-                _logger.LogInformation("Tìm thấy học viên: {HoTen} - {Email}", hocVien.HoTen, hocVien.Email);
-
-                // KIỂM TRA CÁC RÀNG BUỘC TRƯỚC KHI XÓA
-                _logger.LogInformation("=== KIỂM TRA CÁC RÀNG BUỘC ===");
-
-                // 1. Kiểm tra DangKyLop (Restrict - không thể xóa nếu có đăng ký lớp)
-                var dangKyLopCount = await _context.DangKyLops.CountAsync(d => d.HocVienID == id);
-                _logger.LogInformation("Số đăng ký lớp liên quan: {Count}", dangKyLopCount);
-
-                if (dangKyLopCount > 0)
-                {
-                    _logger.LogWarning("Không thể xóa học viên {HocVienID} vì có {Count} đăng ký lớp học", id, dangKyLopCount);
-                    return BadRequest(new
+                    // Kiểm tra học viên có tồn tại không
+                    var hocVien = await _hocVienRepository.GetByIdAsync(id);
+                    if (hocVien == null)
                     {
-                        message = $"Không thể xóa học viên vì có {dangKyLopCount} đăng ký lớp học. Vui lòng hủy đăng ký các lớp học trước khi xóa.",
-                        activeRegistrations = dangKyLopCount
+                        _logger.LogWarning("Không tìm thấy học viên với ID: {HocVienID}", id);
+                        return NotFound(new { message = $"Không tìm thấy học viên với ID {id}" });
+                    }
+
+                    _logger.LogInformation("Tìm thấy học viên: {HoTen} - {Email}", hocVien.HoTen, hocVien.Email);
+
+                    // KIỂM TRA CÁC RÀNG BUỘC TRƯỚC KHI XÓA
+                    _logger.LogInformation("=== KIỂM TRA CÁC RÀNG BUỘC ===");
+
+                    // 1. Kiểm tra DangKyLop (Restrict - không thể xóa nếu có đăng ký lớp)
+                    var dangKyLopCount = await _context.DangKyLops.CountAsync(d => d.HocVienID == id);
+                    _logger.LogInformation("Số đăng ký lớp liên quan: {Count}", dangKyLopCount);
+
+                    if (dangKyLopCount > 0)
+                    {
+                        _logger.LogWarning("Không thể xóa học viên {HocVienID} vì có {Count} đăng ký lớp học", id, dangKyLopCount);
+                        return BadRequest(new
+                        {
+                            message = $"Không thể xóa học viên vì có {dangKyLopCount} đăng ký lớp học. Vui lòng hủy đăng ký các lớp học trước khi xóa.",
+                            activeRegistrations = dangKyLopCount
+                        });
+                    }
+
+                    // 2. Kiểm tra DiemDanh (Restrict - điểm danh các buổi học)
+                    var diemDanhCount = await _context.DiemDanhs.CountAsync(d => d.HocVienID == id);
+                    _logger.LogInformation("Số điểm danh liên quan: {Count}", diemDanhCount);
+
+                    // 3. Kiểm tra DiemSo (Restrict - điểm số)
+                    var diemSoCount = await _context.DiemSos.CountAsync(d => d.HocVienID == id);
+                    _logger.LogInformation("Số điểm số liên quan: {Count}", diemSoCount);
+
+                    // 4. Kiểm tra ViHocVien (Restrict - ví học viên)
+                    var viHocVienCount = await _context.ViHocViens.CountAsync(v => v.HocVienID == id);
+                    _logger.LogInformation("Số giao dịch ví liên quan: {Count}", viHocVienCount);
+
+                    // BẮT ĐẦU XÓA THEO THỨ TỰ ĐÚNG
+                    _logger.LogInformation("=== BẮT ĐẦU XÓA DỮ LIỆU ===");
+
+                    // 1. Xóa DiemDanh liên quan đến học viên
+                    if (diemDanhCount > 0)
+                    {
+                        var deletedDiemDanh = await _context.Database.ExecuteSqlRawAsync("DELETE FROM DiemDanh WHERE HocVienID = {0}", id);
+                        _logger.LogInformation("Đã xóa {Count} điểm danh liên quan", deletedDiemDanh);
+                    }
+
+                    // 2. Xóa DiemSo liên quan đến học viên
+                    if (diemSoCount > 0)
+                    {
+                        var deletedDiemSo = await _context.Database.ExecuteSqlRawAsync("DELETE FROM DiemSo WHERE HocVienID = {0}", id);
+                        _logger.LogInformation("Đã xóa {Count} điểm số liên quan", deletedDiemSo);
+                    }
+
+                    // 3. Xóa ViHocVien liên quan đến học viên
+                    if (viHocVienCount > 0)
+                    {
+                        var deletedViHocVien = await _context.Database.ExecuteSqlRawAsync("DELETE FROM ViHocVien WHERE HocVienID = {0}", id);
+                        _logger.LogInformation("Đã xóa {Count} giao dịch ví liên quan", deletedViHocVien);
+                    }
+
+                    // 4. Nếu học viên có tài khoản liên kết, xóa tài khoản
+                    if (hocVien.TaiKhoanID.HasValue)
+                    {
+                        var taiKhoan = await _taiKhoanRepository.GetByIdAsync(hocVien.TaiKhoanID.Value);
+                        if (taiKhoan != null)
+                        {
+                            _logger.LogInformation("Đang xóa tài khoản liên kết với ID: {TaiKhoanID}", taiKhoan.TaiKhoanID);
+                            await _taiKhoanRepository.DeleteAsync(taiKhoan);
+                            _logger.LogInformation("Đã xóa tài khoản liên kết");
+                        }
+                    }
+
+                    // 5. Cuối cùng, xóa học viên
+                    _logger.LogInformation("Đang xóa học viên với ID: {HocVienID}", id);
+                    await _hocVienRepository.DeleteAsync(hocVien);
+
+                    // Commit transaction
+                    await transaction.CommitAsync();
+
+                    _logger.LogInformation("=== HỌC VIÊN ĐÃ ĐƯỢC XÓA THÀNH CÔNG ===");
+                    _logger.LogInformation("HocVienID: {HocVienID}, HoTen: {HoTen}, Email: {Email}",
+                        id, hocVien.HoTen, hocVien.Email);
+
+                    return Ok(new
+                    {
+                        message = "Học viên và tài khoản đã được xóa thành công",
+                        hocVienID = id,
+                        hoTen = hocVien.HoTen,
+                        email = hocVien.Email,
+                        taiKhoanID = hocVien.TaiKhoanID,
+                        deletedRecords = new
+                        {
+                            dangKyLop = dangKyLopCount,
+                            diemDanh = diemDanhCount,
+                            diemSo = diemSoCount,
+                            viHocVien = viHocVienCount
+                        }
                     });
                 }
-
-                // 2. Kiểm tra DiemDanh (Restrict - điểm danh các buổi học)
-                var diemDanhCount = await _context.DiemDanhs.CountAsync(d => d.HocVienID == id);
-                _logger.LogInformation("Số điểm danh liên quan: {Count}", diemDanhCount);
-
-                // 3. Kiểm tra DiemSo (Restrict - điểm số)
-                var diemSoCount = await _context.DiemSos.CountAsync(d => d.HocVienID == id);
-                _logger.LogInformation("Số điểm số liên quan: {Count}", diemSoCount);
-
-                // 4. Kiểm tra ViHocVien (Restrict - ví học viên)
-                var viHocVienCount = await _context.ViHocViens.CountAsync(v => v.HocVienID == id);
-                _logger.LogInformation("Số giao dịch ví liên quan: {Count}", viHocVienCount);
-
-                // BẮT ĐẦU XÓA THEO THỨ TỰ ĐÚNG
-                _logger.LogInformation("=== BẮT ĐẦU XÓA DỮ LIỆU ===");
-
-                // 1. Xóa DiemDanh liên quan đến học viên
-                if (diemDanhCount > 0)
+                catch (DbUpdateException dbEx)
                 {
-                    var deletedDiemDanh = await _context.Database.ExecuteSqlRawAsync("DELETE FROM DiemDanh WHERE HocVienID = {0}", id);
-                    _logger.LogInformation("Đã xóa {Count} điểm danh liên quan", deletedDiemDanh);
-                }
+                    await transaction.RollbackAsync();
+                    _logger.LogError(dbEx, "Lỗi database khi xóa học viên với ID: {HocVienID}", id);
 
-                // 2. Xóa DiemSo liên quan đến học viên
-                if (diemSoCount > 0)
-                {
-                    var deletedDiemSo = await _context.Database.ExecuteSqlRawAsync("DELETE FROM DiemSo WHERE HocVienID = {0}", id);
-                    _logger.LogInformation("Đã xóa {Count} điểm số liên quan", deletedDiemSo);
-                }
-
-                // 3. Xóa ViHocVien liên quan đến học viên
-                if (viHocVienCount > 0)
-                {
-                    var deletedViHocVien = await _context.Database.ExecuteSqlRawAsync("DELETE FROM ViHocVien WHERE HocVienID = {0}", id);
-                    _logger.LogInformation("Đã xóa {Count} giao dịch ví liên quan", deletedViHocVien);
-                }
-
-                // 4. Nếu học viên có tài khoản liên kết, xóa tài khoản
-                if (hocVien.TaiKhoanID.HasValue)
-                {
-                    var taiKhoan = await _taiKhoanRepository.GetByIdAsync(hocVien.TaiKhoanID.Value);
-                    if (taiKhoan != null)
+                    // Kiểm tra lỗi constraint cụ thể
+                    if (dbEx.InnerException?.Message.Contains("FOREIGN KEY") == true)
                     {
-                        _logger.LogInformation("Đang xóa tài khoản liên kết với ID: {TaiKhoanID}", taiKhoan.TaiKhoanID);
-                        await _taiKhoanRepository.DeleteAsync(taiKhoan);
-                        _logger.LogInformation("Đã xóa tài khoản liên kết");
+                        return BadRequest(new
+                        {
+                            message = "Không thể xóa học viên vì vẫn còn dữ liệu liên quan chưa được xử lý.",
+                            error = dbEx.InnerException?.Message,
+                            solution = "Vui lòng liên hệ quản trị viên để được hỗ trợ xử lý dữ liệu ràng buộc."
+                        });
                     }
-                }
-
-                // 5. Cuối cùng, xóa học viên
-                _logger.LogInformation("Đang xóa học viên với ID: {HocVienID}", id);
-                await _hocVienRepository.DeleteAsync(hocVien);
-
-                // Commit transaction
-                await transaction.CommitAsync();
-
-                _logger.LogInformation("=== HỌC VIÊN ĐÃ ĐƯỢC XÓA THÀNH CÔNG ===");
-                _logger.LogInformation("HocVienID: {HocVienID}, HoTen: {HoTen}, Email: {Email}",
-                    id, hocVien.HoTen, hocVien.Email);
-
-                return Ok(new
-                {
-                    message = "Học viên và tài khoản đã được xóa thành công",
-                    hocVienID = id,
-                    hoTen = hocVien.HoTen,
-                    email = hocVien.Email,
-                    taiKhoanID = hocVien.TaiKhoanID,
-                    deletedRecords = new
+                    else if (dbEx.InnerException?.Message.Contains("CHECK") == true)
                     {
-                        dangKyLop = dangKyLopCount,
-                        diemDanh = diemDanhCount,
-                        diemSo = diemSoCount,
-                        viHocVien = viHocVienCount
+                        return BadRequest(new
+                        {
+                            message = "Dữ liệu không thỏa mãn ràng buộc kiểm tra trong database",
+                            error = dbEx.InnerException?.Message
+                        });
                     }
-                });
-            }
-            catch (DbUpdateException dbEx)
-            {
-                await transaction.RollbackAsync();
-                _logger.LogError(dbEx, "Lỗi database khi xóa học viên với ID: {HocVienID}", id);
 
-                // Kiểm tra lỗi constraint cụ thể
-                if (dbEx.InnerException?.Message.Contains("FOREIGN KEY") == true)
-                {
                     return BadRequest(new
                     {
-                        message = "Không thể xóa học viên vì vẫn còn dữ liệu liên quan chưa được xử lý.",
-                        error = dbEx.InnerException?.Message,
-                        solution = "Vui lòng liên hệ quản trị viên để được hỗ trợ xử lý dữ liệu ràng buộc."
-                    });
-                }
-                else if (dbEx.InnerException?.Message.Contains("CHECK") == true)
-                {
-                    return BadRequest(new
-                    {
-                        message = "Dữ liệu không thỏa mãn ràng buộc kiểm tra trong database",
+                        message = "Lỗi khi xóa học viên khỏi database",
                         error = dbEx.InnerException?.Message
                     });
                 }
-
-                return BadRequest(new
+                catch (Exception ex)
                 {
-                    message = "Lỗi khi xóa học viên khỏi database",
-                    error = dbEx.InnerException?.Message
-                });
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync();
-                _logger.LogError(ex, "Lỗi không xác định khi xóa học viên với ID: {HocVienID}", id);
-                return StatusCode(500, new
-                {
-                    message = "Lỗi server nội bộ khi xóa học viên",
-                    error = ex.Message,
-                    stackTrace = ex.StackTrace
-                });
-            }
+                    await transaction.RollbackAsync();
+                    _logger.LogError(ex, "Lỗi không xác định khi xóa học viên với ID: {HocVienID}", id);
+                    return StatusCode(500, new
+                    {
+                        message = "Lỗi server nội bộ khi xóa học viên",
+                        error = ex.Message,
+                        stackTrace = ex.StackTrace
+                    });
+                }
+            });
         }
     }
 }
