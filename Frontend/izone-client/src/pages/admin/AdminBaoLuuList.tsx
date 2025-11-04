@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { baoLuuService, BaoLuu, lopHocService, LopHoc, hocVienService, HocVien } from '../../services/api';
+import { baoLuuService, BaoLuu, lopHocService, LopHoc, hocVienService, HocVien, dangKyLopService, DangKyLop } from '../../services/api';
 import '../../styles/Management.css';
 
 interface BaoLuuWithDetails extends BaoLuu {
@@ -54,13 +54,16 @@ const AdminBaoLuuList: React.FC = () => {
       setLopHocList(lopHocData);
       setHocVienList(hocVienData);
 
-            // Kết hợp dữ liệu bảo lưu với thông tin lớp học và học viên
+      // Kết hợp dữ liệu bảo lưu với thông tin lớp học và học viên
       const baoLuuWithDetails = await Promise.all(
         baoLuuData.map(async (baoLuu) => {
           try {
-            // Tìm thông tin lớp học qua lopID (đổi từ dangKyID)
-            const lopHoc = lopHocData.find(lop => lop.lopID === baoLuu.dangKyID) || lopHocData[0];
-            const hocVien = hocVienData.find(hv => hv.hocVienID === baoLuu.dangKyID) || hocVienData[0];
+            // Lấy thông tin đăng ký lớp học từ dangKyID
+            const dangKyLop = await dangKyLopService.getById(baoLuu.dangKyID);
+
+            // Tìm thông tin học viên và lớp học từ DangKyLop
+            const hocVien = hocVienData.find(hv => hv.hocVienID === dangKyLop.hocVienID);
+            const lopHoc = lopHocData.find(lop => lop.lopID === dangKyLop.lopID);
 
             return {
               ...baoLuu,
