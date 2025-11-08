@@ -415,20 +415,10 @@ const StudentMyClasses: React.FC = () => {
 
   const getReservationForRegistration = (dangKyId: number): BaoLuu | undefined => {
     const reservations = (window as any).studentReservations as BaoLuu[];
-    // Lọc các bảo lưu cho đăng ký này và sắp xếp theo thứ tự ưu tiên
+    // Lọc các bảo lưu cho đăng ký này và lấy cái có ID lớn nhất (mới nhất)
     const relevantReservations = reservations
       ?.filter(bl => bl.dangKyID === dangKyId)
-      .sort((a, b) => {
-        // Ưu tiên: DaDuyet > DangChoDuyet > TuChoi > HetHan > DaSuDung
-        const statusPriority = { 'DaDuyet': 5, 'DangChoDuyet': 4, 'TuChoi': 3, 'HetHan': 2, 'DaSuDung': 1 };
-        const aPriority = statusPriority[a.trangThai as keyof typeof statusPriority] || 0;
-        const bPriority = statusPriority[b.trangThai as keyof typeof statusPriority] || 0;
-
-        if (aPriority !== bPriority) return bPriority - aPriority;
-
-        // Nếu cùng trạng thái, lấy bản mới nhất
-        return new Date(b.ngayBaoLuu).getTime() - new Date(a.ngayBaoLuu).getTime();
-      });
+      .sort((a, b) => b.baoLuuID - a.baoLuuID); // ID lớn hơn = tạo sau = mới hơn
 
     return relevantReservations?.[0];
   };

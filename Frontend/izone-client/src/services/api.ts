@@ -531,6 +531,12 @@ export const dangKyLopService = {
     return response.data;
   },
 
+  // Get registrations by student ID with full class details
+  getByHocVienIdWithDetails: async (hocVienId: number): Promise<any[]> => {
+    const response = await apiClient.get<any[]>(`/DangKyLop/hoc-vien/${hocVienId}/details`);
+    return response.data;
+  },
+
   // Get registrations by class ID
   getByLopId: async (lopId: number): Promise<DangKyLop[]> => {
     const response = await apiClient.get<DangKyLop[]>(`/DangKyLop/lop/${lopId}`);

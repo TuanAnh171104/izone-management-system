@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { hocVienService, HocVien } from '../../services/api';
+import StudentDetailsModal from '../../components/StudentDetailsModal';
 import '../../styles/Management.css';
 
 interface PaginationInfo {
@@ -16,6 +17,8 @@ const AdminStudents: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingStudent, setEditingStudent] = useState<HocVien | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<HocVien | null>(null);
   const [editFormData, setEditFormData] = useState({
     hoTen: '',
     email: '',
@@ -109,6 +112,11 @@ const AdminStudents: React.FC = () => {
       ...prev,
       [field]: value
     }));
+  };
+
+  const handleViewStudentDetails = (student: HocVien) => {
+    setSelectedStudent(student);
+    setShowDetailsModal(true);
   };
 
 
@@ -308,6 +316,13 @@ const AdminStudents: React.FC = () => {
                 <td>
                   <div className="action-buttons">
                     <button
+                      className="btn-view"
+                      onClick={() => handleViewStudentDetails(hv)}
+                      title="Xem chi tiết"
+                    >
+                      👁️
+                    </button>
+                    <button
                       className="btn-edit"
                       onClick={() => handleEditStudent(hv)}
                       title="Chỉnh sửa"
@@ -497,6 +512,12 @@ const AdminStudents: React.FC = () => {
         </div>
       )}
 
+      {/* Modal chi tiết học viên */}
+      <StudentDetailsModal
+        isOpen={showDetailsModal}
+        onClose={() => setShowDetailsModal(false)}
+        student={selectedStudent}
+      />
 
     </div>
   );
