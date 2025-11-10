@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { lopHocService, LopHoc, khoaHocService, KhoaHoc, giangVienService, GiangVien, diaDiemService, DiaDiem } from '../../services/api';
+import AdminClassDetailsModal from '../../components/AdminClassDetailsModal';
 import '../../styles/Management.css';
 
 interface PaginationInfo {
@@ -41,6 +42,8 @@ const AdminLopHocList: React.FC = () => {
   const [diaDiems, setDiaDiems] = useState<DiaDiem[]>([]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingLopHoc, setEditingLopHoc] = useState<LopHoc | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedLopHoc, setSelectedLopHoc] = useState<LopHoc | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [filteredLopHocs, setFilteredLopHocs] = useState<LopHoc[]>([]);
   const [editFormData, setEditFormData] = useState({
@@ -284,6 +287,11 @@ const AdminLopHocList: React.FC = () => {
       trangThai: lopHoc.trangThai || 'ChuaBatDau'
     });
     setShowEditModal(true);
+  };
+
+  const handleViewDetails = (lopHoc: LopHoc) => {
+    setSelectedLopHoc(lopHoc);
+    setShowDetailsModal(true);
   };
 
   const handleUpdateLopHoc = async () => {
@@ -667,7 +675,7 @@ const AdminLopHocList: React.FC = () => {
             }}
           >
             <i className="fas fa-filter"></i>
-            <span>Bộ lọc</span>
+            <span>BỘ LỌC</span>
             <i className={`fas ${showFilters ? 'fa-chevron-up' : 'fa-chevron-down'}`} style={{
               transition: 'transform 0.3s ease',
               transform: showFilters ? 'rotate(180deg)' : 'rotate(0deg)'
@@ -1307,6 +1315,13 @@ const AdminLopHocList: React.FC = () => {
                 <td>
                   <div className="action-buttons">
                     <button
+                      className="btn-view"
+                      onClick={() => handleViewDetails(lopHoc)}
+                      title="Xem chi tiết"
+                    >
+                      👁️
+                    </button>
+                    <button
                       className="btn-edit"
                       onClick={() => handleEditLopHoc(lopHoc)}
                       title="Chỉnh sửa"
@@ -1632,6 +1647,16 @@ const AdminLopHocList: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal chi tiết lớp học */}
+      <AdminClassDetailsModal
+        lopHoc={selectedLopHoc}
+        isOpen={showDetailsModal}
+        onClose={() => {
+          setShowDetailsModal(false);
+          setSelectedLopHoc(null);
+        }}
+      />
     </div>
   );
 };

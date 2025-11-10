@@ -227,9 +227,9 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                   </div>
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#6c757d' }}>
-                      {registrations.filter(r => r.trangThaiDangKy === 'DaKetThuc').length}
+                      {registrations.filter(r => r.trangThaiDangKy === 'DaHoanThanh').length}
                     </div>
-                    <div style={{ fontSize: '14px', color: '#6c757d' }}>Đã kết thúc</div>
+                    <div style={{ fontSize: '14px', color: '#6c757d' }}>Đã hoàn thành</div>
                   </div>
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#dc3545' }}>
