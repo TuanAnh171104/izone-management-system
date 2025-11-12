@@ -36,6 +36,8 @@ const AdminPrediction: React.FC = () => {
   const [riskFilter, setRiskFilter] = useState<string>('all'); // 'all', 'low', 'medium', 'high', 'very-high'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [predictionLoading, setPredictionLoading] = useState(false);
+  const [hasPredictions, setHasPredictions] = useState(false);
 
   const [pagination, setPagination] = useState<PaginationInfo>({
     currentPage: 1,
@@ -45,20 +47,36 @@ const AdminPrediction: React.FC = () => {
   });
 
   useEffect(() => {
-    fetchPredictions();
+    fetchBasicData();
   }, []);
 
-  const fetchPredictions = async () => {
+  const fetchBasicData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await predictionService.getStudentDropoutPredictions();
+      const response = await predictionService.getBasicPredictionData();
       setPredictions(response.data);
+      setHasPredictions(false); // Reset prediction state when loading new data
     } catch (error) {
-      console.error('Lỗi khi tải danh sách dự báo:', error);
-      setError('Không thể tải danh sách dự báo. Vui lòng thử lại.');
+      console.error('Lỗi khi tải dữ liệu cơ bản:', error);
+      setError('Không thể tải dữ liệu cơ bản. Vui lòng thử lại.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const runPredictions = async () => {
+    try {
+      setPredictionLoading(true);
+      setError(null);
+      const response = await predictionService.runPredictionsForData(predictions);
+      setPredictions(response.data);
+      setHasPredictions(true);
+    } catch (error) {
+      console.error('Lỗi khi chạy dự báo:', error);
+      setError('Không thể chạy dự báo. Vui lòng thử lại.');
+    } finally {
+      setPredictionLoading(false);
     }
   };
 
@@ -246,7 +264,7 @@ const AdminPrediction: React.FC = () => {
         </div>
         <div className="table-container" style={{ padding: 20 }}>
           <p style={{ color: 'red' }}>{error}</p>
-          <button onClick={fetchPredictions} className="btn btn-primary">
+          <button onClick={fetchBasicData} className="btn btn-primary">
             Thử lại
           </button>
         </div>
@@ -290,9 +308,9 @@ const AdminPrediction: React.FC = () => {
         </div>
       </div>
 
-      {/* Statistics */}
-      <div className="stats-container" style={{
-        background: '#e9ecef',
+      {/* Prediction Controls */}
+      <div className="prediction-controls" style={{
+        background: '#f8f9fa',
         padding: '15px',
         marginBottom: '20px',
         borderRadius: '8px',
@@ -302,22 +320,85 @@ const AdminPrediction: React.FC = () => {
         flexWrap: 'wrap',
         gap: '15px'
       }}>
-        <div>
-          <strong>Tổng học viên dự báo:</strong> {filteredPredictions.length}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          <div>
+            <strong>Trạng thái dự báo:</strong>
+            <span style={{
+              marginLeft: '8px',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              backgroundColor: hasPredictions ? '#d4edda' : '#fff3cd',
+              color: hasPredictions ? '#155724' : '#856404'
+            }}>
+              {hasPredictions ? '✅ Đã chạy dự báo' : '⏳ Chưa chạy dự báo'}
+            </span>
+          </div>
+          <button
+            onClick={runPredictions}
+            disabled={predictionLoading || predictions.length === 0}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: predictionLoading ? '#6c757d' : '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: predictionLoading || predictions.length === 0 ? 'not-allowed' : 'pointer',
+              fontWeight: 'bold',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            {predictionLoading ? (
+              <>
+                <span>🔄</span>
+                Đang chạy dự báo...
+              </>
+            ) : (
+              <>
+                <span>🎯</span>
+                Chạy dự báo
+              </>
+            )}
+          </button>
         </div>
-        <div>
-          <strong>Mức thấp ({`<`} 30%):</strong> {filteredPredictions.filter(p => p.tyLeBoHoc >= 0 && p.tyLeBoHoc < 30).length}
-        </div>
-        <div>
-          <strong>Trung bình (30-50%):</strong> {filteredPredictions.filter(p => p.tyLeBoHoc >= 30 && p.tyLeBoHoc < 50).length}
-        </div>
-        <div>
-          <strong>Mức cao (50-70%):</strong> {filteredPredictions.filter(p => p.tyLeBoHoc >= 50 && p.tyLeBoHoc < 70).length}
-        </div>
-        <div>
-          <strong>Rất cao ({`>`} 70%):</strong> {filteredPredictions.filter(p => p.tyLeBoHoc >= 70).length}
+        <div style={{ fontSize: '14px', color: '#666' }}>
+          Tổng học viên: {predictions.length}
         </div>
       </div>
+
+      {/* Statistics - Only show if predictions have been run */}
+      {hasPredictions && (
+        <div className="stats-container" style={{
+          background: '#e9ecef',
+          padding: '15px',
+          marginBottom: '20px',
+          borderRadius: '8px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '15px'
+        }}>
+          <div>
+            <strong>Tổng học viên dự báo:</strong> {filteredPredictions.length}
+          </div>
+          <div>
+            <strong>Mức thấp ({`<`} 30%):</strong> {filteredPredictions.filter(p => p.tyLeBoHoc >= 0 && p.tyLeBoHoc < 30).length}
+          </div>
+          <div>
+            <strong>Trung bình (30-50%):</strong> {filteredPredictions.filter(p => p.tyLeBoHoc >= 30 && p.tyLeBoHoc < 50).length}
+          </div>
+          <div>
+            <strong>Mức cao (50-70%):</strong> {filteredPredictions.filter(p => p.tyLeBoHoc >= 50 && p.tyLeBoHoc < 70).length}
+          </div>
+          <div>
+            <strong>Rất cao ({`>`} 70%):</strong> {filteredPredictions.filter(p => p.tyLeBoHoc >= 70).length}
+          </div>
+        </div>
+      )}
 
       <div className="table-container">
         <table className="management-table">

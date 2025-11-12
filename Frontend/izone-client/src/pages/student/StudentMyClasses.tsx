@@ -380,7 +380,7 @@ const StudentMyClasses: React.FC = () => {
 
       let message = 'Đổi lớp thành công!';
       if (response.paymentRequired) {
-        message += ` Cần thanh toán thêm ${response.feeDifference.toLocaleString('vi-VN')} VNĐ.`;
+        message += ` Cần thanh toán thêm ${response.remainingPayment.toLocaleString('vi-VN')} VNĐ.`;
 
         // Nếu có VNPay URL, redirect đến trang thanh toán
         if (response.vnpayUrl) {

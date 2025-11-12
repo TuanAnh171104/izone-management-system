@@ -1563,7 +1563,7 @@ export const baoLuuService = {
 
 // Prediction Service
 export const predictionService = {
-  // Lấy danh sách dự báo học viên bỏ học
+  // Lấy danh sách dự báo học viên bỏ học (full predictions)
   getStudentDropoutPredictions: async (): Promise<{
     success: boolean;
     message: string;
@@ -1576,6 +1576,38 @@ export const predictionService = {
       data: any[];
       count: number;
     }>('/Prediction/student-dropout-predictions');
+    return response.data;
+  },
+
+  // Lấy dữ liệu cơ bản (không có predictions)
+  getBasicPredictionData: async (): Promise<{
+    success: boolean;
+    message: string;
+    data: any[];
+    count: number;
+  }> => {
+    const response = await apiClient.get<{
+      success: boolean;
+      message: string;
+      data: any[];
+      count: number;
+    }>('/Prediction/basic-data');
+    return response.data;
+  },
+
+  // Chạy dự báo cho dữ liệu đã có
+  runPredictionsForData: async (basicData: any[]): Promise<{
+    success: boolean;
+    message: string;
+    data: any[];
+    count: number;
+  }> => {
+    const response = await apiClient.post<{
+      success: boolean;
+      message: string;
+      data: any[];
+      count: number;
+    }>('/Prediction/run-predictions', basicData);
     return response.data;
   },
 

@@ -24,5 +24,15 @@ namespace IZONE.Core.Interfaces
         /// Dự đoán cho danh sách học viên
         /// </summary>
         Task<List<PredictionData>> PredictBatchDropoutRiskAsync(List<PredictionData> dataList);
+
+        /// <summary>
+        /// Lấy dữ liệu cơ bản cho dự báo (không bao gồm prediction)
+        /// </summary>
+        Task<List<PredictionData>> GetBasicPredictionDataAsync();
+
+        /// <summary>
+        /// Chạy dự báo cho danh sách học viên đã có dữ liệu cơ bản
+        /// </summary>
+        Task<List<PredictionData>> RunPredictionsForDataAsync(List<PredictionData> basicData);
     }
 }

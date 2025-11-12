@@ -1042,10 +1042,10 @@ namespace IZONE.API.Controllers
                     return NotFound($"Original registration with ID {request.OriginalDangKyID} not found");
                 }
 
-                // 5. Kiểm tra lớp gốc có đang diễn ra không
-                if (originalDangKy.LopHoc?.TrangThai != "DangDienRa")
+                // 5. Kiểm tra lớp gốc có đang diễn ra hoặc chưa bắt đầu không
+                if (originalDangKy.LopHoc?.TrangThai != "DangDienRa" && originalDangKy.LopHoc?.TrangThai != "ChuaBatDau")
                 {
-                    return BadRequest("Original class is not currently in progress");
+                    return BadRequest("Original class must be in progress or not started yet");
                 }
 
                 // 6. Kiểm tra điều kiện đổi lớp (≤ 1 buổi đã học)
@@ -1077,11 +1077,34 @@ namespace IZONE.API.Controllers
                     return BadRequest("Student is already registered for this class");
                 }
 
-                // 9. Tính toán học phí
+                // 9. Tính toán học phí và kiểm tra ví học viên
                 decimal originalFee = (originalDangKy.LopHoc != null && originalDangKy.LopHoc.KhoaHoc != null)
                     ? originalDangKy.LopHoc.KhoaHoc.HocPhi : 0;
                 decimal newFee = (newClass.KhoaHoc != null) ? newClass.KhoaHoc.HocPhi : 0;
                 decimal feeDifference = newFee - originalFee;
+
+                // Lấy số dư ví hiện tại của học viên
+                decimal walletBalance = student.TaiKhoanVi;
+
+                // Khởi tạo các biến để theo dõi
+                decimal amountFromWallet = 0;
+                decimal remainingPayment = 0;
+                decimal refundAmount = 0;
+
+                // Xử lý logic kiểm tra ví trước khi tính chênh lệch
+                if (feeDifference > 0)
+                {
+                    // Lớp mới đắt hơn - cần thanh toán thêm
+                    // Trừ từ ví trước, tối đa bằng số dư ví
+                    amountFromWallet = Math.Min(feeDifference, walletBalance);
+                    remainingPayment = feeDifference - amountFromWallet;
+                }
+                else if (feeDifference < 0)
+                {
+                    // Lớp mới rẻ hơn - hoàn tiền
+                    refundAmount = Math.Abs(feeDifference);
+                }
+                // feeDifference == 0: không cần làm gì
 
                 // 10. Thực hiện đổi lớp với transaction
                 var strategy = _context.Database.CreateExecutionStrategy();
@@ -1098,7 +1121,7 @@ namespace IZONE.API.Controllers
                             LopID = request.NewLopID,
                             NgayDangKy = DateTime.Now,
                             TrangThaiDangKy = "DangHoc",
-                            TrangThaiThanhToan = feeDifference <= 0 ? "DaThanhToan" : "ChuaThanhToan"
+                            TrangThaiThanhToan = remainingPayment > 0 ? "ChuaThanhToan" : "DaThanhToan"
                         };
 
                         await _context.DangKyLops.AddAsync(newDangKyLop);
@@ -1112,21 +1135,39 @@ namespace IZONE.API.Controllers
                         await _context.SaveChangesAsync();
 
                         // Xử lý học phí SAU KHI ĐÃ CÓ ID
-                        if (feeDifference > 0)
+                        if (amountFromWallet > 0)
                         {
-                            // Lớp mới đắt hơn - tạo thanh toán
+                            // Trừ tiền từ ví học viên
+                            var walletDebit = new ViHocVien
+                            {
+                                HocVienID = request.HocVienID,
+                                LoaiTx = "Tru", // Trừ tiền từ ví
+                                SoTien = amountFromWallet,
+                                DangKyID = newDangKyLop.DangKyID,
+                                GhiChu = $"Trừ từ ví để thanh toán chênh lệch khi đổi từ lớp {originalDangKy.LopID} sang lớp {request.NewLopID}",
+                                NgayGiaoDich = DateTime.Now
+                            };
+                            await _context.ViHocViens.AddAsync(walletDebit);
+
+                            // Cập nhật số dư ví học viên
+                            student.TaiKhoanVi -= amountFromWallet;
+                        }
+
+                        if (remainingPayment > 0)
+                        {
+                            // Còn cần thanh toán thêm - tạo thanh toán VNPay
                             var transactionRef = $"CHANGE-{DateTime.Now:yyyyMMddHHmmss}-{request.HocVienID}";
                             var payment = new ThanhToan
                             {
                                 HocVienID = request.HocVienID,
-                                DangKyID = newDangKyLop.DangKyID, // Bây giờ ID đã có trong database
-                                SoTien = feeDifference,
+                                DangKyID = newDangKyLop.DangKyID,
+                                SoTien = remainingPayment,
                                 NgayThanhToan = DateTime.Now,
                                 PhuongThuc = "Bank",
                                 Provider = "VNPay",
                                 TransactionRef = transactionRef,
                                 Status = "Pending",
-                                GhiChu = $"Thanh toán phần chênh lệch khi đổi từ lớp {originalDangKy.LopID} sang lớp {request.NewLopID}"
+                                GhiChu = $"Thanh toán phần chênh lệch còn lại khi đổi từ lớp {originalDangKy.LopID} sang lớp {request.NewLopID}"
                             };
                             await _context.ThanhToans.AddAsync(payment);
                             await _context.SaveChangesAsync(); // Lưu để có ThanhToanID
@@ -1134,13 +1175,12 @@ namespace IZONE.API.Controllers
                         else if (feeDifference < 0)
                         {
                             // Lớp mới rẻ hơn - hoàn tiền vào ví
-                            var refundAmount = Math.Abs(feeDifference);
                             var walletTransaction = new ViHocVien
                             {
                                 HocVienID = request.HocVienID,
-                                LoaiTx = "Hoan", // Sửa từ "HoanTien" thành "Hoan" theo CHECK constraint
+                                LoaiTx = "Hoan", // Hoàn tiền
                                 SoTien = refundAmount,
-                                DangKyID = newDangKyLop.DangKyID, // Bây giờ ID đã có trong database
+                                DangKyID = newDangKyLop.DangKyID,
                                 GhiChu = $"Hoàn tiền chênh lệch khi đổi từ lớp {originalDangKy.LopID} sang lớp {request.NewLopID}",
                                 NgayGiaoDich = DateTime.Now
                             };
@@ -1166,7 +1206,7 @@ namespace IZONE.API.Controllers
                                 if (createdPayment != null)
                                 {
                                     var vnpayPaymentUrl = GenerateVNPayPaymentUrl(
-                                        amount: feeDifference,
+                                        amount: remainingPayment, // Sử dụng remainingPayment thay vì feeDifference
                                         orderInfo: $"IZONE-CHANGE-CLASS-{newDangKyLop.DangKyID}",
                                         orderType: "class_change_payment",
                                         transactionRef: createdPayment.TransactionRef ?? $"CHANGE-{DateTime.Now:yyyyMMddHHmmss}-{request.HocVienID}",
@@ -1192,8 +1232,11 @@ namespace IZONE.API.Controllers
                             trangThaiThanhToan = newDangKyLop.TrangThaiThanhToan,
                             message = "Successfully changed class!",
                             feeDifference = feeDifference,
-                            paymentRequired = feeDifference > 0,
-                            refundAmount = feeDifference < 0 ? Math.Abs(feeDifference) : 0,
+                            walletBalance = walletBalance, // Số dư ví ban đầu
+                            amountFromWallet = amountFromWallet, // Số tiền đã trừ từ ví
+                            remainingPayment = remainingPayment, // Số tiền còn cần thanh toán
+                            paymentRequired = remainingPayment > 0,
+                            refundAmount = refundAmount,
                             vnpayUrl = vnpayUrl, // Thêm VNPay URL
                             originalClass = new
                             {

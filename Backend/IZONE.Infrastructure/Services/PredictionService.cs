@@ -447,5 +447,53 @@ namespace IZONE.Infrastructure.Services
                 Console.WriteLine($"Error creating teacher notification for student {studentData.HocVienID}: {ex.Message}");
             }
         }
+
+        public async Task<List<PredictionData>> GetBasicPredictionDataAsync()
+        {
+            // Execute stored procedure to get base data
+            var rawData = await GetRawPredictionDataAsync();
+
+            // Enrich data with additional information from related tables
+            await EnrichWithRelatedDataAsync(rawData);
+
+            // Set TyLeBoHoc to null (no predictions calculated yet)
+            foreach (var item in rawData)
+            {
+                item.TyLeBoHoc = null;
+            }
+
+            return rawData;
+        }
+
+        public async Task<List<PredictionData>> RunPredictionsForDataAsync(List<PredictionData> basicData)
+        {
+            if (basicData == null || basicData.Count == 0)
+                return basicData;
+
+            // Get real ML predictions from Python service
+            var predictionResults = await PredictBatchDropoutRiskAsync(basicData);
+
+            // Update data with real predictions and send notifications for high-risk students
+            for (int i = 0; i < basicData.Count; i++)
+            {
+                basicData[i].TyLeBoHoc = predictionResults[i].TyLeBoHoc;
+
+                // Send notification to teacher if student risk >= 50%
+                if (basicData[i].TyLeBoHoc != null && basicData[i].TyLeBoHoc.Value >= 50)
+                {
+                    try
+                    {
+                        await CreateTeacherNotificationAsync(basicData[i], basicData[i].TyLeBoHoc.Value);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log but don't fail the entire operation
+                        Console.WriteLine($"Failed to send teacher notification for student {basicData[i].HocVienID}: {ex.Message}");
+                    }
+                }
+            }
+
+            return basicData;
+        }
     }
 }

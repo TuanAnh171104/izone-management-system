@@ -963,16 +963,39 @@ namespace IZONE.API.Controllers
                     }
                 } else {
                     // Payment failed - log error code theo bảng mã lỗi VNPay
-                    thanhToan.Status = "Failed";
                     var errorMessage = GetVNPayErrorMessage(responseCode);
-                    thanhToan.GhiChu += $" - VNPay Failed: {responseCode} - {errorMessage}";
                     _logger.LogWarning("VNPay payment failed for transaction {TransactionRef}: {ErrorCode} - {ErrorMessage}", transactionRef, responseCode, errorMessage);
+
+                // Check if this is a class change payment (contains CHANGE in transactionRef)
+                bool isClassChangePayment = transactionRef.Contains("CHANGE");
+
+                _logger.LogInformation("=== ROLLBACK DECISION DEBUG ===");
+                _logger.LogInformation("TransactionRef: {Ref}", transactionRef);
+                _logger.LogInformation("ResponseCode: {Code}", responseCode);
+                _logger.LogInformation("IsClassChangePayment: {IsChange}", isClassChangePayment);
+                _logger.LogInformation("ShouldRollback: {Should}", responseCode != "00" && isClassChangePayment);
+
+                if (isClassChangePayment) {
+                    if (responseCode != "00") {
+                        _logger.LogInformation("=== CALLING ROLLBACK ===");
+                        _logger.LogInformation("Starting rollback for class change payment {TransactionRef}", transactionRef);
+                        await RollbackClassChange(thanhToan, responseCode, errorMessage);
+                        _logger.LogInformation("=== ROLLBACK COMPLETED ===");
+                        _logger.LogInformation("Successfully rolled back class change for failed payment {TransactionRef}", transactionRef);
+                    } else {
+                        _logger.LogInformation("Class change payment succeeded, no rollback needed");
+                    }
+                } else {
+                    // For regular payments, update status to Failed and cleanup if needed
+                    thanhToan.Status = "Failed";
+                    thanhToan.GhiChu += $" - VNPay Failed: {responseCode} - {errorMessage}";
 
                     // Cleanup khi user hủy thanh toán hoặc lỗi không thể khắc phục
                     if (ShouldCleanupPayment(responseCode)) {
                         await CleanupFailedPayment(thanhToan, responseCode, errorMessage);
                         _logger.LogInformation("Cleaned up failed payment for transaction {TransactionRef}", transactionRef);
                     }
+                }
                 }
 
                 await _context.SaveChangesAsync();
@@ -1323,7 +1346,7 @@ namespace IZONE.API.Controllers
                 // Xóa hoặc cập nhật bản ghi DangKyLop
                 var dangKyLop = await _context.DangKyLops.FindAsync(thanhToan.DangKyID);
                 if (dangKyLop != null) {
-                    // Xóa hoàn toàn bản ghi đăng ký vì payment đã bị hủy
+                      // Xóa hoàn toàn bản ghi đăng ký vì payment đã bị hủy
                     _context.DangKyLops.Remove(dangKyLop);
                     _logger.LogInformation("Removed registration {RegistrationId} for failed payment", dangKyLop.DangKyID);
                 }
@@ -1333,6 +1356,133 @@ namespace IZONE.API.Controllers
 
             } catch (Exception ex) {
                 _logger.LogError(ex, "Error cleaning up failed payment {PaymentId}", thanhToan.ThanhToanID);
+                // Không throw exception để không làm gián đoạn flow chính
+            }
+        }
+
+        // Helper: Rollback class change when payment fails
+        private async Task RollbackClassChange(ThanhToan thanhToan, string responseCode, string errorMessage)
+        {
+            try {
+                _logger.LogInformation("=== ROLLBACK START ===");
+                _logger.LogInformation("Payment ID: {PaymentId}, DangKyID: {RegId}, ResponseCode: {Code}", thanhToan.ThanhToanID, thanhToan.DangKyID, responseCode);
+
+                // 1. Lấy thông tin đăng ký mới (được tạo trong ChangeClass)
+                _logger.LogInformation("Step 1: Finding new registration with ID {RegId}", thanhToan.DangKyID);
+                var newDangKyLop = await _context.DangKyLops.FindAsync(thanhToan.DangKyID);
+                if (newDangKyLop == null) {
+                    _logger.LogError("New registration not found for payment {PaymentId}, DangKyID: {RegId}", thanhToan.ThanhToanID, thanhToan.DangKyID);
+                    return;
+                }
+
+                _logger.LogInformation("Found new registration {NewRegId} for student {StudentId}", newDangKyLop.DangKyID, newDangKyLop.HocVienID);
+
+                // 2. Tìm đăng ký cũ (đã bị hủy trong ChangeClass)
+                _logger.LogInformation("Step 2: Finding original registration to restore");
+                _logger.LogInformation("Looking for cancelled registration with reason 'Đổi sang lớp khác' within 15 minutes");
+
+                // Tìm đăng ký của cùng học viên có trạng thái "DaHuy" với lý do "Đổi sang lớp khác"
+                // và thời gian hủy gần với thời gian tạo đăng ký mới (trong vòng 15 phút để đảm bảo)
+                var timeWindow = TimeSpan.FromMinutes(15);
+                var originalDangKy = await _context.DangKyLops
+                    .Include(dk => dk.LopHoc)
+                    .ThenInclude(l => l.KhoaHoc)
+                    .Where(dk =>
+                        dk.HocVienID == newDangKyLop.HocVienID &&
+                        dk.TrangThaiDangKy == "DaHuy" &&
+                        dk.LyDoHuy == "Đổi sang lớp khác" &&
+                        dk.NgayHuy.HasValue &&
+                        dk.NgayDangKy <= newDangKyLop.NgayDangKy &&
+                        dk.NgayHuy.Value >= newDangKyLop.NgayDangKy - timeWindow) // FIXED: EF-compatible date comparison
+                    .OrderByDescending(dk => dk.NgayHuy)
+                    .FirstOrDefaultAsync();
+
+                if (originalDangKy == null) {
+                    _logger.LogWarning("Original registration not found for rollback of payment {PaymentId}. Looking for any recent cancelled registration...", thanhToan.ThanhToanID);
+
+                    // Fallback: Tìm bất kỳ đăng ký nào của học viên bị hủy gần đây
+                    originalDangKy = await _context.DangKyLops
+                        .Include(dk => dk.LopHoc)
+                        .ThenInclude(l => l.KhoaHoc)
+                        .Where(dk =>
+                            dk.HocVienID == newDangKyLop.HocVienID &&
+                            dk.TrangThaiDangKy == "DaHuy" &&
+                            dk.NgayHuy.HasValue &&
+                            newDangKyLop.NgayDangKy - dk.NgayHuy.Value <= timeWindow)
+                        .OrderByDescending(dk => dk.NgayHuy)
+                        .FirstOrDefaultAsync();
+                }
+
+                if (originalDangKy == null) {
+                    _logger.LogError("No suitable original registration found for rollback of payment {PaymentId}", thanhToan.ThanhToanID);
+                    return;
+                }
+
+                _logger.LogInformation("Found original registration {OriginalRegId} to restore", originalDangKy.DangKyID);
+
+                // 3. Hoàn tiền ví học viên (nếu đã trừ trong ChangeClass)
+                _logger.LogInformation("Step 3: Processing wallet refund");
+                var student = await _context.HocViens.FindAsync(newDangKyLop.HocVienID);
+                if (student != null) {
+                    _logger.LogInformation("Found student {StudentId} with current wallet balance: {Balance}", student.HocVienID, student.TaiKhoanVi);
+
+                    // Tìm tất cả giao dịch trừ tiền liên quan đến đăng ký MỚI (new) trong thời gian gần đây
+                    // Đây là điểm quan trọng: tiền được trừ khi tạo đăng ký mới, nên tìm theo DangKyID của đăng ký mới
+                    var recentWalletDebits = await _context.ViHocViens
+                        .Where(vh =>
+                            vh.HocVienID == newDangKyLop.HocVienID &&
+                            vh.LoaiTx == "Tru" &&
+                            vh.DangKyID == newDangKyLop.DangKyID && // Sử dụng DangKyID của đăng ký mới
+                            vh.NgayGiaoDich >= originalDangKy.NgayHuy.Value.AddMinutes(-10) && // Từ thời điểm hủy đăng ký cũ
+                            vh.NgayGiaoDich <= newDangKyLop.NgayDangKy.AddMinutes(10)) // Đến thời điểm tạo đăng ký mới
+                        .ToListAsync();
+
+                    _logger.LogInformation("Found {Count} wallet debit transactions to refund", recentWalletDebits.Count);
+
+                    decimal totalRefund = 0;
+                    foreach (var walletDebit in recentWalletDebits) {
+                        // Hoàn tiền vào ví
+                        student.TaiKhoanVi += walletDebit.SoTien;
+                        totalRefund += walletDebit.SoTien;
+
+                        // Xóa giao dịch trừ tiền
+                        _context.ViHocViens.Remove(walletDebit);
+                        _logger.LogInformation("Removed wallet debit transaction {TxId} and refunded {Amount}", walletDebit.ViID, walletDebit.SoTien);
+                    }
+
+                    if (totalRefund > 0) {
+                        _logger.LogInformation("Total wallet refund: {TotalRefund} for student {StudentId}. New balance: {NewBalance}",
+                            totalRefund, student.HocVienID, student.TaiKhoanVi);
+                    } else {
+                        _logger.LogInformation("No wallet transactions found to refund for student {StudentId}", student.HocVienID);
+                    }
+                } else {
+                    _logger.LogWarning("Student {StudentId} not found for wallet refund", newDangKyLop.HocVienID);
+                }
+
+                // 4. Khôi phục trạng thái đăng ký cũ
+                originalDangKy.TrangThaiDangKy = "DangHoc";
+                originalDangKy.TrangThaiThanhToan = "DaThanhToan";
+                originalDangKy.NgayHuy = null;
+                originalDangKy.LyDoHuy = null;
+                _logger.LogInformation("Restored original registration {RegistrationId} to active status", originalDangKy.DangKyID);
+
+                // 5. Xóa thanh toán thất bại TRƯỚC (để tránh foreign key constraint)
+                _context.ThanhToans.Remove(thanhToan);
+                _logger.LogInformation("Removed failed payment {PaymentId}", thanhToan.ThanhToanID);
+
+                // 6. Xóa đăng ký mới SAU (sau khi đã xóa thanh toán)
+                _context.DangKyLops.Remove(newDangKyLop);
+                _logger.LogInformation("Removed new registration {RegistrationId}", newDangKyLop.DangKyID);
+
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Successfully rolled back class change for failed payment {PaymentId}", thanhToan.ThanhToanID);
+                _logger.LogInformation("=== ROLLBACK END ===");
+
+            } catch (Exception ex) {
+                _logger.LogError(ex, "Error rolling back class change for payment {PaymentId}", thanhToan.ThanhToanID);
+                _logger.LogError("Rollback exception details: {Message}", ex.Message);
+                _logger.LogError("Stack trace: {StackTrace}", ex.StackTrace);
                 // Không throw exception để không làm gián đoạn flow chính
             }
         }
