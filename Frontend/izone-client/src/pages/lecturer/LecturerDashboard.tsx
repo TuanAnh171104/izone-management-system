@@ -772,7 +772,7 @@ const LecturerDashboard: React.FC = () => {
                         textTransform: 'uppercase',
                         letterSpacing: '0.5px'
                       }}>
-                        Tổng HV
+                        Tổng Học viên
                       </th>
                       <th style={{
                         padding: '12px',

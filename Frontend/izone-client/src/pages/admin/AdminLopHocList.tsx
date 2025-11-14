@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { lopHocService, LopHoc, khoaHocService, KhoaHoc, giangVienService, GiangVien, diaDiemService, DiaDiem } from '../../services/api';
 import AdminClassDetailsModal from '../../components/AdminClassDetailsModal';
+import { mapLopHocStatus } from '../../utils/statusMapping';
 import '../../styles/Management.css';
 
 interface PaginationInfo {
@@ -1309,7 +1310,7 @@ const AdminLopHocList: React.FC = () => {
                 <td>{lopHoc.soLuongToiDa || 'Không giới hạn'}</td>
                 <td>
                   <span className="status-badge">
-                    {lopHoc.trangThai || 'Đã kết thúc'}
+                    {mapLopHocStatus(lopHoc.trangThai)}
                   </span>
                 </td>
                 <td>

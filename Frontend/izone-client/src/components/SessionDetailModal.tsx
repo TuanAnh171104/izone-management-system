@@ -1,5 +1,6 @@
 import React from 'react';
 import { BuoiHoc, DiaDiem } from '../services/api';
+import { mapBuoiHocStatus } from '../utils/statusMapping';
 
 interface SessionDetailModalProps {
   session: BuoiHoc | null;
@@ -124,7 +125,7 @@ const SessionDetailModal: React.FC<SessionDetailModalProps> = ({
                 fontWeight: '600',
                 ...getStatusColor(session.trangThai)
               }}>
-                {session.trangThai || 'Chưa xác định'}
+                {mapBuoiHocStatus(session.trangThai)}
               </span>
             </div>
 

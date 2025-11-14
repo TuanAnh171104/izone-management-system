@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { lopHocService, LopHoc, dangKyLopService, DangKyLop, buoiHocService, BuoiHoc, diemDanhService, DiemDanh, hocVienService, diaDiemService, DiaDiem, thongBaoService } from '../../services/api';
+import { mapLopHocStatus, mapBuoiHocStatus, mapTrangThaiDangKy } from '../../utils/statusMapping';
 import GradesTab from './GradesTab';
 import '../../styles/Lecturer.css';
 
@@ -192,7 +193,7 @@ const AttendanceTab: React.FC<AttendanceTabProps> = ({ lopId, students, buoiHocs
               <option value="">-- Chọn buổi học --</option>
               {filteredBuoiHocs.map((buoiHoc) => (
                 <option key={buoiHoc.buoiHocID} value={buoiHoc.buoiHocID}>
-                  {formatDateOnly(buoiHoc.ngayHoc)} - {buoiHoc.thoiGianBatDau || 'Chưa có giờ'} ({buoiHoc.trangThai})
+                  {formatDateOnly(buoiHoc.ngayHoc)} - {buoiHoc.thoiGianBatDau || 'Chưa có giờ'} ({mapBuoiHocStatus(buoiHoc.trangThai)})
                 </option>
               ))}
             </select>
@@ -281,7 +282,7 @@ const AttendanceTab: React.FC<AttendanceTabProps> = ({ lopId, students, buoiHocs
                   fontWeight: '600',
                   ...getStatusColor(selectedBuoiHoc.trangThai)
                 }}>
-                  {selectedBuoiHoc.trangThai}
+                  {mapBuoiHocStatus(selectedBuoiHoc.trangThai)}
                 </span>
               </div>
             </div>
@@ -1111,10 +1112,10 @@ Cảm ơn sự hợp tác của quý học viên!`;
                       fontWeight: '600',
                       ...getStatusColor(selectedBuoiHoc.trangThai)
                     }}>
-                      {selectedBuoiHoc.trangThai}
-                    </span>
-                  </div>
-                </div>
+                  {mapBuoiHocStatus(selectedBuoiHoc.trangThai)}
+                </span>
+              </div>
+            </div>
               </div>
 
               {/* Form chỉnh sửa */}
@@ -1422,7 +1423,7 @@ Cảm ơn sự hợp tác của quý học viên!`;
                       fontWeight: '600',
                       color: '#374151'
                     }}>
-                      {buoiHoc.trangThai}
+                      {mapBuoiHocStatus(buoiHoc.trangThai)}
                     </div>
                     <div style={{ fontSize: '12px', color: '#6b7280' }}>
                       Trạng thái
@@ -2154,7 +2155,7 @@ const LecturerClassDetail: React.FC = () => {
               fontWeight: '600',
               ...getStatusColor(classInfo.trangThai || 'unknown')
             }}>
-              {classInfo.trangThai || 'Chưa xác định'}
+              {mapLopHocStatus(classInfo.trangThai)}
             </span>
           </div>
         </div>
@@ -2358,7 +2359,7 @@ const LecturerClassDetail: React.FC = () => {
                                 fontWeight: '600',
                                 ...getStatusColor(student.trangThaiDangKy || 'unknown')
                               }}>
-                                {student.trangThaiDangKy || 'Chưa xác định'}
+                                {mapTrangThaiDangKy(student.trangThaiDangKy)}
                               </span>
                             </span>
                           </div>

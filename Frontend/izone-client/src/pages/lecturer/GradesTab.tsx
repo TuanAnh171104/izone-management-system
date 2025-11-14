@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { diemSoService } from '../../services/api';
+import { mapLoaiDiem, mapLopHocStatus } from '../../utils/statusMapping';
 
 interface StudentWithStats {
   hocVienID: number;
@@ -183,17 +184,7 @@ const GradesTab: React.FC<GradesTabProps> = ({ lopId, students, classStatus, onR
     return 'Chưa nhập';
   };
 
-  // Hàm chuyển đổi tên hiển thị từ giá trị database sang tiếng Việt đúng chính tả
-  const getDisplayName = (type: string) => {
-    switch (type) {
-      case 'GiuaKy':
-        return 'Giữa kỳ';
-      case 'CuoiKy':
-        return 'Cuối kỳ';
-      default:
-        return type;
-    }
-  };
+
 
   // Xác định chế độ hiển thị dựa trên trạng thái lớp học
   const isReadOnly = classStatus === 'DaKetThuc';
@@ -226,8 +217,8 @@ const GradesTab: React.FC<GradesTabProps> = ({ lopId, students, classStatus, onR
         <div style={{ fontSize: '12px', color: isReadOnly ? '#dc2626' : '#6b7280', marginTop: '4px' }}>
           <i className={`fas ${isReadOnly ? 'fa-lock' : 'fa-info-circle'}`}></i>
           {isReadOnly
-            ? `Trạng thái lớp: ${classStatus} - Chỉ xem kết quả điểm số`
-            : `Trạng thái lớp: ${classStatus} - Cho phép nhập điểm`
+            ? `Trạng thái lớp: ${mapLopHocStatus(classStatus)} - Chỉ xem kết quả điểm số`
+            : `Trạng thái lớp: ${mapLopHocStatus(classStatus)} - Cho phép nhập điểm`
           }
         </div>
       </div>
@@ -278,7 +269,7 @@ const GradesTab: React.FC<GradesTabProps> = ({ lopId, students, classStatus, onR
                   fontSize: '14px'
                 }}
               >
-                {getDisplayName(type)}
+                {mapLoaiDiem(type)}
               </button>
             ))}
           </div>
@@ -294,7 +285,7 @@ const GradesTab: React.FC<GradesTabProps> = ({ lopId, students, classStatus, onR
         marginBottom: '20px'
       }}>
         <h4 style={{ margin: '0 0 15px 0', color: '#374151' }}>
-          <i className="fas fa-chart-bar"></i> Thống kê điểm số ({activeGradeType}):
+          <i className="fas fa-chart-bar"></i> Thống kê điểm số ({mapLoaiDiem(activeGradeType)}):
         </h4>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
           <div style={{ textAlign: 'center' }}>

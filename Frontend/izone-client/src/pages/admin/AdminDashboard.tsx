@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { taiKhoanService, giangVienService, hocVienService, khoaHocService, lopHocService, thanhToanService, chiPhiService, dangKyLopService, diemSoService } from '../../services/api';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell, CartesianGrid } from 'recharts';
+import { mapLoaiChiPhi } from '../../utils/statusMapping';
 import '../../styles/Management.css';
 
 interface DashboardStats {
@@ -135,7 +136,7 @@ const AdminDashboard: React.FC = () => {
 
         const costStructMap: Record<string, number> = {};
         filteredCosts.forEach((c: any) => {
-          const key = c.loaiChiPhi || 'Khac';
+          const key = mapLoaiChiPhi(c.loaiChiPhi) || 'Khác';
           costStructMap[key] = (costStructMap[key] || 0) + (c.soTien || 0);
         });
         const costStructArr = Object.entries(costStructMap)

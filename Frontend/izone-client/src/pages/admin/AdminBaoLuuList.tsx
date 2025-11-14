@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { baoLuuService, BaoLuu, lopHocService, LopHoc, hocVienService, HocVien, dangKyLopService, DangKyLop } from '../../services/api';
+import { mapBaoLuuStatus } from '../../utils/statusMapping';
 import '../../styles/Management.css';
 
 interface BaoLuuWithDetails extends BaoLuu {
@@ -124,11 +125,11 @@ const AdminBaoLuuList: React.FC = () => {
 
   const getStatusBadge = (trangThai: string) => {
     const statusConfig = {
-      'DangChoDuyet': { color: '#ffc107', text: 'Đang chờ duyệt', icon: '⏳' },
-      'DaDuyet': { color: '#28a745', text: 'Đã duyệt', icon: '✅' },
-      'DaSuDung': { color: '#007bff', text: 'Đã sử dụng', icon: '📚' },
-      'TuChoi': { color: '#dc3545', text: 'Từ chối', icon: '❌' },
-      'HetHan': { color: '#6c757d', text: 'Hết hạn', icon: '⏰' }
+      'DangChoDuyet': { color: '#ffc107', icon: '⏳' },
+      'DaDuyet': { color: '#28a745', icon: '✅' },
+      'DaSuDung': { color: '#007bff', icon: '📚' },
+      'TuChoi': { color: '#dc3545', icon: '❌' },
+      'HetHan': { color: '#6c757d', icon: '⏰' }
     };
 
     const config = statusConfig[trangThai as keyof typeof statusConfig] || statusConfig.DangChoDuyet;
@@ -145,7 +146,7 @@ const AdminBaoLuuList: React.FC = () => {
         alignItems: 'center',
         gap: '4px'
       }}>
-        {config.icon} {config.text}
+        {config.icon} {mapBaoLuuStatus(trangThai)}
       </span>
     );
   };

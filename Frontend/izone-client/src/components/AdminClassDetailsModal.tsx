@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { dangKyLopService, DangKyLop, hocVienService, HocVien, lopHocService, LopHoc } from '../services/api';
+import { mapLopHocStatus, mapTrangThaiDangKy, mapTrangThaiThanhToan } from '../utils/statusMapping';
 
 interface StudentWithStats {
   dangKyID: number;
@@ -253,7 +254,7 @@ const AdminClassDetailsModal: React.FC<AdminClassDetailsModalProps> = ({
                       fontWeight: '600',
                       ...getStatusColor(lopHoc.trangThai || 'unknown')
                     }}>
-                      {lopHoc.trangThai || 'Chưa xác định'}
+                      {mapLopHocStatus(lopHoc.trangThai)}
                     </span>
                   </div>
                 </div>
@@ -382,7 +383,7 @@ const AdminClassDetailsModal: React.FC<AdminClassDetailsModalProps> = ({
                             marginBottom: '4px',
                             ...getStatusColor(student.trangThaiDangKy)
                           }}>
-                            {student.trangThaiDangKy}
+                            {mapTrangThaiDangKy(student.trangThaiDangKy)}
                           </div>
                           <div style={{
                             padding: '4px 8px',
@@ -391,7 +392,7 @@ const AdminClassDetailsModal: React.FC<AdminClassDetailsModalProps> = ({
                             fontWeight: '600',
                             ...getPaymentStatusColor(student.trangThaiThanhToan)
                           }}>
-                            {student.trangThaiThanhToan}
+                            {mapTrangThaiThanhToan(student.trangThaiThanhToan)}
                           </div>
                         </div>
 

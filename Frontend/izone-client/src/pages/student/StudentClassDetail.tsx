@@ -20,6 +20,7 @@ import {
   diaDiemService,
   DiaDiem
 } from '../../services/api';
+import { mapLopHocStatus, mapTrangThaiDangKy, mapTrangThaiThanhToan, mapBaoLuuStatus } from '../../utils/statusMapping';
 import MonthlyCalendar from '../../components/MonthlyCalendar';
 import SessionDetailModal from '../../components/SessionDetailModal';
 import '../../styles/Management.css';
@@ -476,7 +477,7 @@ const StudentClassDetail: React.FC = () => {
               fontWeight: '600',
               ...getStatusColor(classInfo.trangThai || 'unknown')
             }}>
-              {classInfo.trangThai || 'Chưa xác định'}
+              {mapLopHocStatus(classInfo.trangThai)}
             </span>
           </div>
           {dangKyLop && (
@@ -494,7 +495,7 @@ const StudentClassDetail: React.FC = () => {
                   fontWeight: '600',
                   ...getStatusColor(dangKyLop.trangThaiDangKy || 'unknown')
                 }}>
-                  {dangKyLop.trangThaiDangKy || 'Chưa xác định'}
+                  {mapTrangThaiDangKy(dangKyLop.trangThaiDangKy)}
                 </span>
               </div>
               <div>
@@ -508,7 +509,7 @@ const StudentClassDetail: React.FC = () => {
                   backgroundColor: dangKyLop.trangThaiThanhToan === 'DaThanhToan' ? '#dcfce7' : '#fef3c7',
                   color: dangKyLop.trangThaiThanhToan === 'DaThanhToan' ? '#166534' : '#92400e'
                 }}>
-                  {dangKyLop.trangThaiThanhToan === 'DaThanhToan' ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                  {mapTrangThaiThanhToan(dangKyLop.trangThaiThanhToan)}
                 </span>
               </div>
             </>
@@ -912,7 +913,7 @@ const StudentClassDetail: React.FC = () => {
                             fontWeight: '600',
                             ...getBaoLuuStatusColor(baoLuu.trangThai)
                           }}>
-                            {baoLuu.trangThai}
+                            {mapBaoLuuStatus(baoLuu.trangThai)}
                           </span>
                         </div>
                         <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '5px' }}>

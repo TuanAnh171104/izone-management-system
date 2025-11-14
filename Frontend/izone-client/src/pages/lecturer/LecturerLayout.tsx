@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { mapVaiTro } from '../../utils/statusMapping';
 import '../../styles/Lecturer.css';
 
 interface UserInfo {
@@ -74,7 +75,7 @@ const LecturerLayout: React.FC = () => {
                 >
                   {userInfo.hoTen || userInfo.tenDangNhap}
                 </button>
-                <div className="user-role">{userInfo.vaiTro}</div>
+                <div className="user-role">{mapVaiTro(userInfo.vaiTro)}</div>
               </div>
             </div>
             <button onClick={handleLogout} className="btn-logout-sidebar" title="Đăng xuất">

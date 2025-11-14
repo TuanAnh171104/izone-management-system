@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { dangKyLopService, DangKyLop, HocVien } from '../services/api';
+import { mapLopHocStatus, mapTrangThaiDangKy, mapTrangThaiThanhToan } from '../utils/statusMapping';
 
 interface StudentDetailsModalProps {
   isOpen: boolean;
@@ -293,7 +294,7 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                               color: 'white',
                               background: getStatusColor(registration.trangThaiDangKy)
                             }}>
-                              {getStatusText(registration.trangThaiDangKy)}
+                              {mapTrangThaiDangKy(registration.trangThaiDangKy)}
                             </span>
                             <span style={{
                               padding: '4px 12px',
@@ -303,7 +304,7 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                               color: 'white',
                               background: getPaymentStatusColor(registration.trangThaiThanhToan)
                             }}>
-                              {getPaymentStatusText(registration.trangThaiThanhToan)}
+                              {mapTrangThaiThanhToan(registration.trangThaiThanhToan)}
                             </span>
                             {registration.loaiDangKy && (
                               <span style={{
@@ -363,10 +364,7 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                           <div>
                             <div style={{ fontSize: '12px', color: '#6c757d', marginBottom: '4px' }}>TRẠNG THÁI LỚP</div>
                             <div style={{ fontWeight: '600', color: '#495057' }}>
-                              {registration.lopHoc?.trangThai === 'DangDienRa' ? 'Đang diễn ra' :
-                               registration.lopHoc?.trangThai === 'ChuaBatDau' ? 'Chưa bắt đầu' :
-                               registration.lopHoc?.trangThai === 'DaKetThuc' ? 'Đã kết thúc' :
-                               registration.lopHoc?.trangThai || 'Chưa có'}
+                              {mapLopHocStatus(registration.lopHoc?.trangThai ?? null)}
                             </div>
                           </div>
                           {registration.ngayHuy && (

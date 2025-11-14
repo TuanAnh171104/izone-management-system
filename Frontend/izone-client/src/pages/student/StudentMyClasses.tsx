@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { lopHocService, LopHoc, khoaHocService, KhoaHoc, diaDiemService, DiaDiem, dangKyLopService, DangKyLop, baoLuuService, BaoLuu } from '../../services/api';
+import { mapLopHocStatus } from '../../utils/statusMapping';
 import '../../styles/Management.css';
 
 interface PaginationInfo {
@@ -161,21 +162,18 @@ const StudentMyClasses: React.FC = () => {
   };
 
   const getStatusColor = (status: string | null) => {
-    switch (status?.toLowerCase()) {
-      case 'active':
-      case 'đang hoạt động':
-      case 'danghoc':
-      case 'đang học':
-        return { backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' };
-      case 'completed':
-      case 'hoàn thành':
-      case 'hoanthanh':
-        return { backgroundColor: '#e0e7ff', color: '#3730a3', border: '1px solid #c7d2fe' };
-      case 'upcoming':
-      case 'sắp tới':
+    const mappedStatus = mapLopHocStatus(status);
+    switch (mappedStatus?.toLowerCase()) {
+      case 'chưa bắt đầu':
         return { backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' };
-      default:
+      case 'đang diễn ra':
+        return { backgroundColor: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' };
+      case 'đã kết thúc':
+        return { backgroundColor: '#e0e7ff', color: '#3730a3', border: '1px solid #c7d2fe' };
+      case 'đã hủy':
         return { backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca' };
+      default:
+        return { backgroundColor: '#f3f4f6', color: '#6b7280', border: '1px solid #d1d5db' };
     }
   };
 
@@ -771,7 +769,7 @@ const StudentMyClasses: React.FC = () => {
                     ...getStatusColor(classItem.trangThai || 'unknown')
                   }}
                 >
-                  {classItem.trangThai || 'Chưa xác định'}
+                  {mapLopHocStatus(classItem.trangThai)}
                 </span>
 
                 <div className="action-buttons">

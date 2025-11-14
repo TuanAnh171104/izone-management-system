@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { chiPhiService, ChiPhi, lopHocService, LopHoc, khoaHocService, KhoaHoc, diaDiemService, DiaDiem } from '../../services/api';
+import { mapLoaiChiPhi, mapNguonGoc } from '../../utils/statusMapping';
 import '../../styles/Management.css';
 
 interface PaginationInfo {
@@ -82,13 +83,25 @@ const AdminChiPhiList: React.FC = () => {
 
   // Các loại chi phí có sẵn
   const loaiChiPhiOptions = [
-    'LuongGV', 'LuongNV', 'TaiLieu', 'Marketing',
-    'MatBang', 'Utilities', 'BaoHiem', 'Thue',
-    'BaoTri', 'CongNghe', 'SuKien', 'Khac'
+    { value: 'LuongGV', label: 'Lương giảng viên' },
+    { value: 'LuongNV', label: 'Lương nhân viên' },
+    { value: 'TaiLieu', label: 'Tài liệu' },
+    { value: 'Marketing', label: 'Marketing' },
+    { value: 'MatBang', label: 'Mặt bằng' },
+    { value: 'Utilities', label: 'Tiện ích' },
+    { value: 'BaoHiem', label: 'Bảo hiểm' },
+    { value: 'Thue', label: 'Thuế' },
+    { value: 'BaoTri', label: 'Bảo trì' },
+    { value: 'CongNghe', label: 'Công nghệ' },
+    { value: 'SuKien', label: 'Sự kiện' },
+    { value: 'Khac', label: 'Khác' }
   ];
 
   const allocationMethodOptions = ['SeatHours', 'PerStudent', 'Revenue'];
-  const nguonGocOptions = ['NhapTay', 'TuDong'];
+  const nguonGocOptions = [
+    { value: 'NhapTay', label: 'Nhập tay' },
+    { value: 'TuDong', label: 'Tự động' }
+  ];
 
   useEffect(() => {
     fetchInitialData();
@@ -901,7 +914,7 @@ const AdminChiPhiList: React.FC = () => {
                 >
                   <option value="">Tất cả</option>
                   {loaiChiPhiOptions.map(loai => (
-                    <option key={loai} value={loai}>{loai}</option>
+                    <option key={loai.value} value={loai.value}>{loai.label}</option>
                   ))}
                 </select>
               </div>
@@ -1108,7 +1121,7 @@ const AdminChiPhiList: React.FC = () => {
                 >
                   <option value="">Tất cả</option>
                   {nguonGocOptions.map(nguon => (
-                    <option key={nguon} value={nguon}>{nguon}</option>
+                    <option key={nguon.value} value={nguon.value}>{nguon.label}</option>
                   ))}
                 </select>
               </div>
@@ -1261,7 +1274,7 @@ const AdminChiPhiList: React.FC = () => {
                 <td>{formatDate(cost.ngayPhatSinh)}</td>
                 <td>
                   <span className={`badge badge-${cost.loaiChiPhi.toLowerCase()}`}>
-                    {cost.loaiChiPhi}
+                    {mapLoaiChiPhi(cost.loaiChiPhi)}
                   </span>
                 </td>
                 <td>{cost.subLoai || '-'}</td>
@@ -1274,7 +1287,7 @@ const AdminChiPhiList: React.FC = () => {
                 <td>{cost.allocationMethod}</td>
                 <td>
                   <span className={`badge ${cost.nguonGoc === 'TuDong' ? 'badge-success' : 'badge-secondary'}`}>
-                    {cost.nguonGoc}
+                    {mapNguonGoc(cost.nguonGoc)}
                   </span>
                 </td>
                 <td>
@@ -1403,7 +1416,7 @@ const AdminChiPhiList: React.FC = () => {
                 >
                   <option value="">Chọn loại chi phí</option>
                   {loaiChiPhiOptions.map(loai => (
-                    <option key={loai} value={loai}>{loai}</option>
+                    <option key={loai.value} value={loai.value}>{loai.label}</option>
                   ))}
                 </select>
               </div>
@@ -1654,7 +1667,7 @@ const AdminChiPhiList: React.FC = () => {
                   onBlur={(e) => e.target.style.borderColor = '#e9ecef'}
                 >
                   {nguonGocOptions.map(nguon => (
-                    <option key={nguon} value={nguon}>{nguon}</option>
+                    <option key={nguon.value} value={nguon.value}>{nguon.label}</option>
                   ))}
                 </select>
               </div>
@@ -1879,7 +1892,7 @@ const AdminChiPhiList: React.FC = () => {
                 >
                   <option value="">Chọn loại chi phí</option>
                   {loaiChiPhiOptions.map(loai => (
-                    <option key={loai} value={loai}>{loai}</option>
+                    <option key={loai.value} value={loai.value}>{loai.label}</option>
                   ))}
                 </select>
               </div>
@@ -2130,7 +2143,7 @@ const AdminChiPhiList: React.FC = () => {
                   onBlur={(e) => e.target.style.borderColor = '#e9ecef'}
                 >
                   {nguonGocOptions.map(nguon => (
-                    <option key={nguon} value={nguon}>{nguon}</option>
+                    <option key={nguon.value} value={nguon.value}>{nguon.label}</option>
                   ))}
                 </select>
               </div>
