@@ -437,6 +437,46 @@ namespace IZONE.API.Controllers
         }
 
         /// <summary>
+        /// API lấy dữ liệu xếp hạng giảng viên cho dashboard (giống báo cáo hiệu suất giảng viên)
+        /// </summary>
+        [HttpPost("dashboard-teacher-ranking")]
+        public async Task<IActionResult> GetDashboardTeacherRanking([FromBody] DateRangeRequest? request)
+        {
+            try
+            {
+                var result = await _baoCaoService.BaoCaoHieuSuatGiangVienAsync(
+                    request?.NgayBatDau,
+                    request?.NgayKetThuc,
+                    null); // Không cần filters cho dashboard
+
+                // Trả về chỉ data array cho dashboard sử dụng
+                var teacherRanking = result.Data.Select(d => new
+                {
+                    giangVienID = 0, // Dashboard không cần ID
+                    hoTen = d["TenGiangVien"].ToString(),
+                    soLopDay = Convert.ToInt32(d["SoLopDay"]),
+                    diemTB = Convert.ToDecimal(d["DiemTbXetTotNghiep_ToanGV"]),
+                    tyLeDat = Convert.ToDecimal(d["TiLeDat_Pct"]) / 100 // Chuyển từ % về decimal
+                }).ToList();
+
+                return Ok(new
+                {
+                    success = true,
+                    data = teacherRanking
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    success = false,
+                    message = "Có lỗi xảy ra khi lấy dữ liệu xếp hạng giảng viên",
+                    error = ex.Message
+                });
+            }
+        }
+
+        /// <summary>
         /// Báo cáo hiệu suất cơ sở theo cách tính mới (tỷ lệ lấp đầy trung bình)
         /// </summary>
         [HttpPost("hieu-suat-co-so")]

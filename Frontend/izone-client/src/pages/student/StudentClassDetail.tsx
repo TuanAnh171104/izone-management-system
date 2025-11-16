@@ -82,6 +82,13 @@ const StudentClassDetail: React.FC = () => {
         return;
       }
 
+      // Kiểm tra có bảo lưu đang chờ duyệt không
+      const pendingBaoLuu = baoLuuList.find(bl => bl.trangThai === 'DangChoDuyet');
+      if (pendingBaoLuu) {
+        alert(`Bạn đã có một yêu cầu bảo lưu đang chờ duyệt (ID: ${pendingBaoLuu.baoLuuID}).\n\nVui lòng đợi admin duyệt hoặc từ chối yêu cầu hiện tại trước khi gửi yêu cầu mới.`);
+        return;
+      }
+
       // Lấy lý do bảo lưu từ textarea
       const lyDoElement = document.querySelector('textarea[placeholder*="Nhập lý do bảo lưu"]') as HTMLTextAreaElement;
       const lyDo = lyDoElement?.value?.trim();
@@ -144,8 +151,8 @@ const StudentClassDetail: React.FC = () => {
         // Hiển thị thông báo thành công
         alert(`Yêu cầu bảo lưu đã được gửi thành công! Bạn còn ${soBuoiConLai} buổi để bảo lưu trong vòng 1 năm.`);
 
-        // Refresh lại danh sách bảo lưu
-        await fetchClassDetail();
+        // Thêm vào danh sách bảo lưu trực tiếp (tối ưu thay vì reload toàn bộ)
+        setBaoLuuList(prevList => [...prevList, response]);
 
         // Reset form
         if (lyDoElement) {
@@ -218,13 +225,14 @@ const StudentClassDetail: React.FC = () => {
       }
 
       // Lấy thông tin đăng ký của học viên hiện tại
+      let dangKyData: DangKyLop | null = null;
       const userInfo = localStorage.getItem('userInfo');
       if (userInfo) {
         const user = JSON.parse(userInfo);
         if (user.hocVienID) {
           try {
-            const dangKyResponse = await dangKyLopService.getByHocVienAndLop(user.hocVienID, classId);
-            setDangKyLop(dangKyResponse);
+            dangKyData = await dangKyLopService.getByHocVienAndLop(user.hocVienID, classId);
+            setDangKyLop(dangKyData);
           } catch (error) {
             console.warn('Không thể lấy thông tin đăng ký:', error);
           }
@@ -241,18 +249,15 @@ const StudentClassDetail: React.FC = () => {
         console.warn('Không thể lấy danh sách buổi học:', error);
       }
 
-      // Lấy thông tin bảo lưu của học viên
-      if (userInfo) {
-        const user = JSON.parse(userInfo);
-        if (user.hocVienID && dangKyLop) {
-          try {
-            const baoLuuResponse = await baoLuuService.getByDangKyId(dangKyLop.dangKyID);
-            if (Array.isArray(baoLuuResponse)) {
-              setBaoLuuList(baoLuuResponse);
-            }
-          } catch (error) {
-            console.warn('Không thể lấy thông tin bảo lưu:', error);
+      // Lấy thông tin bảo lưu của học viên (sau khi có dangKyData)
+      if (dangKyData) {
+        try {
+          const baoLuuResponse = await baoLuuService.getByDangKyId(dangKyData.dangKyID);
+          if (Array.isArray(baoLuuResponse)) {
+            setBaoLuuList(baoLuuResponse);
           }
+        } catch (error) {
+          console.warn('Không thể lấy thông tin bảo lưu:', error);
         }
       }
 

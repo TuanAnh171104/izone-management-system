@@ -1238,6 +1238,13 @@ export const giangVienService = {
     return response.data;
   },
 
+  // Get lecturer sessions by date (new endpoint for date picker)
+  getSessionsByDate: async (date?: string): Promise<any> => {
+    const params = date ? { date } : {};
+    const response = await apiClient.get('/GiangVien/dashboard/sessions', { params });
+    return response.data;
+  },
+
   // Lấy tỷ lệ chuyên cần theo tuần
   getWeeklyAttendance: async (weeks: number = 12): Promise<any> => {
     const response = await apiClient.get(`/GiangVien/dashboard/attendance-weekly?weeks=${weeks}`);
@@ -1732,6 +1739,12 @@ export const baoCaoService = {
   // Lấy danh sách loại báo cáo
   getLoaiBaoCao: async (): Promise<any> => {
     const response = await apiClient.get<any>('/BaoCao/loai-bao-cao');
+    return response.data;
+  },
+
+  // Lấy dữ liệu xếp hạng giảng viên cho dashboard
+  getDashboardTeacherRanking: async (dateRange: { NgayBatDau: Date; NgayKetThuc: Date }): Promise<any> => {
+    const response = await apiClient.post<any>('/BaoCao/dashboard-teacher-ranking', dateRange);
     return response.data;
   },
 };

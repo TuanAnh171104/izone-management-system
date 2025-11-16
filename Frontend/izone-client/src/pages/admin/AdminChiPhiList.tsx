@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { chiPhiService, ChiPhi, lopHocService, LopHoc, khoaHocService, KhoaHoc, diaDiemService, DiaDiem } from '../../services/api';
 import { mapLoaiChiPhi, mapNguonGoc } from '../../utils/statusMapping';
+import { Edit, DeleteForever } from '@mui/icons-material';
 import '../../styles/Management.css';
 
 interface PaginationInfo {
@@ -1296,15 +1297,29 @@ const AdminChiPhiList: React.FC = () => {
                       className="btn-edit"
                       onClick={() => handleEditChiPhi(cost)}
                       title="Chỉnh sửa"
+                      style={{
+                        padding: '4px',
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        borderRadius: '4px'
+                      }}
                     >
-                      ✏️
+                      <Edit fontSize="small" color="action" />
                     </button>
                     <button
                       className="btn-delete"
                       onClick={() => handleDeleteChiPhi(cost.chiPhiID)}
                       title="Xóa"
+                      style={{
+                        padding: '4px',
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        borderRadius: '4px'
+                      }}
                     >
-                      🗑️
+                      <DeleteForever fontSize="small" color="error" />
                     </button>
                   </div>
                 </td>

@@ -105,19 +105,31 @@ namespace IZONE.API.Controllers
 
         // ====== START: Thêm API Dashboard Giảng Viên ======
 
-[HttpGet("dashboard/today")]
+[HttpGet("dashboard/sessions")]
 [Authorize]
-public async Task<IActionResult> GetTodaySessions()
+public async Task<IActionResult> GetSessionsByDate([FromQuery] string? date = null)
 {
     try
     {
         var giangVienId = GetCurrentGiangVienId();
-        var today = DateTime.Today;
+
+        // Parse date parameter or default to today
+        DateTime selectedDate;
+        if (!string.IsNullOrEmpty(date) && DateTime.TryParse(date, out var parsedDate))
+        {
+            selectedDate = parsedDate.Date;
+        }
+        else
+        {
+            selectedDate = DateTime.Today;
+        }
 
         var buoiHocs = await _context.BuoiHocs
             .Include(b => b.LopHoc).ThenInclude(l => l.KhoaHoc)
             .Include(b => b.LopHoc).ThenInclude(l => l.DiaDiem)
-            .Where(b => b.LopHoc.GiangVienID == giangVienId && b.NgayHoc.Date == today)
+            .Include(b => b.LopHoc).ThenInclude(l => l.DangKyLops)
+            .Where(b => b.LopHoc.GiangVienID == giangVienId && b.NgayHoc.Date == selectedDate)
+            .OrderBy(b => b.ThoiGianBatDau)
             .Select(b => new
             {
                 b.BuoiHocID,
@@ -126,12 +138,14 @@ public async Task<IActionResult> GetTodaySessions()
                 b.ThoiGianKetThuc,
                 b.TrangThai,
                 LopID = b.LopHoc.LopID,
+                TenLop = $"Lớp {b.LopHoc.LopID}",
                 TenKhoaHoc = b.LopHoc.KhoaHoc.TenKhoaHoc,
-                DiaDiem = b.LopHoc.DiaDiem.TenCoSo
+                DiaDiem = b.LopHoc.DiaDiem != null ? b.LopHoc.DiaDiem.TenCoSo : null,
+                SoHocVienDangKy = b.LopHoc.DangKyLops != null ? b.LopHoc.DangKyLops.Count(dk => dk.TrangThaiDangKy == "DangHoc") : 0
             })
             .ToListAsync();
 
-        return Ok(new { date = today, sessions = buoiHocs });
+        return Ok(new { date = selectedDate, sessions = buoiHocs });
     }
     catch (Exception ex)
     {

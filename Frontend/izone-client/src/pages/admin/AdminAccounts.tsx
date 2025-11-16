@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { taiKhoanService, TaiKhoan } from '../../services/api';
+import { Edit, DeleteForever } from '@mui/icons-material';
 import '../../styles/Management.css';
 
 interface PaginationInfo {
@@ -308,15 +309,29 @@ const AdminAccounts: React.FC = () => {
                       className="btn-edit"
                       onClick={() => handleEditAccount(tk)}
                       title="Chỉnh sửa"
+                      style={{
+                        padding: '4px',
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        borderRadius: '4px'
+                      }}
                     >
-                      ✏️
+                      <Edit fontSize="small" color="action" />
                     </button>
                     <button
                       className="btn-delete"
                       onClick={() => handleDeleteAccount(tk.taiKhoanID)}
                       title="Xóa"
+                      style={{
+                        padding: '4px',
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        borderRadius: '4px'
+                      }}
                     >
-                      🗑️
+                      <DeleteForever fontSize="small" color="error" />
                     </button>
                   </div>
                 </td>

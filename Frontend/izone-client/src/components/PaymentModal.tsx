@@ -2,17 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { thanhToanService } from '../services/api';
 import '../styles/PaymentModal.css';
 import {
-  FaTimes,
-  FaQrcode,
-  FaCreditCard,
-  FaCheckCircle,
-  FaExclamationTriangle,
-  FaSpinner,
-  FaMobileAlt,
-  FaClock,
-  FaCopy,
-  FaUniversity
-} from 'react-icons/fa';
+  Close,
+  QrCode,
+  CreditCard,
+  CheckCircle,
+  Warning,
+  PhoneAndroid,
+  Schedule,
+  ContentCopy,
+  AccountBalance,
+  Loop
+} from '@mui/icons-material';
 
 interface LopHoc {
   lopID: number;
@@ -257,13 +257,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const getStatusIcon = () => {
     switch (paymentStatus) {
       case 'completed':
-        return <FaCheckCircle />;
+        return <CheckCircle />;
       case 'failed':
-        return <FaExclamationTriangle />;
+        return <Warning />;
       case 'expired':
-        return <FaClock />;
+        return <Schedule />;
       default:
-        return <FaSpinner />;
+        return <Loop />;
     }
   };
 
@@ -287,15 +287,15 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       <div className="modal-content payment-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h3>
-            <FaCreditCard />
+            <CreditCard />
             Thanh toán khóa học
           </h3>
           <div className="countdown">
-            <FaClock />
+            <Schedule />
             {formatTime(timeLeft)}
           </div>
           <button className="close-button" onClick={onClose}>
-            <FaTimes />
+            <Close />
           </button>
         </div>
 
@@ -379,7 +379,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                       />
                     </div>
                     <div className="qr-overlay">
-                      <FaQrcode />
+                      <QrCode />
                     </div>
                   </div>
 
@@ -420,7 +420,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                           className="copy-btn"
                           onClick={() => copyToClipboard(paymentData.bankInfo?.accountNumber || '107876493622')}
                         >
-                          <FaCopy />
+                          <ContentCopy />
                         </button>
                       </div>
                       <div className="detail-item">
@@ -438,7 +438,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                           className="copy-btn"
                           onClick={() => copyToClipboard(paymentData.transactionRef || 'IZONE Payment')}
                         >
-                          <FaCopy />
+                          <ContentCopy />
                         </button>
                       </div>
                       
@@ -485,7 +485,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               {paymentStatus === 'completed' && (
                 <div className="success-section">
                   <div className="success-animation">
-                    <FaCheckCircle />
+                    <CheckCircle />
                   </div>
                   <h4>🎉 Thanh toán thành công!</h4>
                   <p>Đã đăng ký khóa học thành công. Bạn sẽ nhận được thông báo xác nhận qua email.</p>
@@ -496,7 +496,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               {(paymentStatus === 'failed' || paymentStatus === 'expired') && (
                 <div className="error-section">
                   <div className="error-content">
-                    <FaExclamationTriangle />
+                    <Warning />
                     <h4>{paymentStatus === 'failed' ? 'Thanh toán thất bại' : 'Mã QR đã hết hạn'}</h4>
                     <p>{statusMessage}</p>
                     <button onClick={createPayment} className="btn-retry">
@@ -528,7 +528,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
           ) : (
             <div className="error-container">
-              <FaExclamationTriangle />
+              <Warning />
               <h4>Không thể tạo thanh toán</h4>
               <p>Có lỗi xảy ra khi tạo mã QR thanh toán.</p>
               <button onClick={createPayment} className="btn-retry">

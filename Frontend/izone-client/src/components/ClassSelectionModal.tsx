@@ -2,17 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { lopHocService, dangKyLopService, giangVienService, diaDiemService, thanhToanService } from '../services/api';
 import PaymentModal from './PaymentModal';
 import {
-  FaTimes,
-  FaUser,
-  FaMapMarkerAlt,
-  FaCalendarAlt,
-  FaClock,
-  FaUsers,
-  FaMoneyBillWave,
-  FaChalkboardTeacher,
-  FaCheckCircle,
-  FaExclamationTriangle
-} from 'react-icons/fa';
+  Close,
+  Group,
+  LocationOn,
+  CalendarToday,
+  Schedule,
+  School,
+  CheckCircle,
+  Warning
+} from '@mui/icons-material';
 
 interface LopHoc {
   lopID: number;
@@ -192,7 +190,7 @@ const ClassSelectionModal: React.FC<ClassSelectionModalProps> = ({
         <div className="modal-header">
           <h3>Đăng ký khóa học: {khoaHocName}</h3>
           <button className="close-button" onClick={onClose}>
-            <FaTimes />
+            <Close />
           </button>
         </div>
 
@@ -204,7 +202,7 @@ const ClassSelectionModal: React.FC<ClassSelectionModalProps> = ({
             </div>
           ) : lopHocs.length === 0 ? (
             <div className="no-classes">
-              <span className="no-classes-icon"><FaExclamationTriangle /></span>
+              <span className="no-classes-icon"><Warning /></span>
               <h4>Không có lớp học nào khả dụng</h4>
               <p>Hiện tại không có lớp học nào cho khóa học này. Vui lòng liên hệ quản trị viên để biết thêm thông tin.</p>
             </div>
@@ -221,13 +219,13 @@ const ClassSelectionModal: React.FC<ClassSelectionModalProps> = ({
                       <div className="class-status">
                         {alreadyRegistered && (
                           <div className="status-registered">
-                            <FaCheckCircle />
+                            <CheckCircle />
                             <span>Đã đăng ký</span>
                           </div>
                         )}
                         {isFull && !alreadyRegistered && (
                           <div className="status-full">
-                            <FaUsers />
+                            <Group />
                             <span>Đã đầy</span>
                           </div>
                         )}
@@ -236,15 +234,15 @@ const ClassSelectionModal: React.FC<ClassSelectionModalProps> = ({
                         <h4>{lop.khoaHoc?.tenKhoaHoc}</h4>
                         <div className="class-details">
                           <div className="detail-item">
-                            <FaCalendarAlt />
+                            <CalendarToday />
                             <span>{formatDate(lop.ngayBatDau)} - {lop.ngayKetThuc ? formatDate(lop.ngayKetThuc) : 'Chưa xác định'}</span>
                           </div>
                           <div className="detail-item">
-                            <FaClock />
+                            <Schedule />
                             <span>{lop.caHoc || 'Chưa xác định'} ({lop.ngayHocTrongTuan || 'Chưa xác định'})</span>
                           </div>
                           <div className="detail-item">
-                            <FaUsers />
+                            <Group />
                             <span>{registeredCount}/{lop.soLuongToiDa || 'Không giới hạn'} học viên</span>
                           </div>
                         </div>
@@ -253,7 +251,7 @@ const ClassSelectionModal: React.FC<ClassSelectionModalProps> = ({
 
                     <div className="class-body">
                       <div className="lecturer-info">
-                        <FaChalkboardTeacher />
+                        <School />
                         <div>
                           <strong>Giảng viên:</strong> {lop.giangVien?.hoTen || 'Chưa xác định'}
                           {lop.giangVien?.chuyenMon && (
@@ -264,7 +262,7 @@ const ClassSelectionModal: React.FC<ClassSelectionModalProps> = ({
 
                       {lop.diaDiem && (
                         <div className="location-info">
-                          <FaMapMarkerAlt />
+                          <LocationOn />
                           <div>
                             <strong>Địa điểm:</strong> {lop.diaDiem.tenCoSo}
                             <div className="address">{lop.diaDiem.diaChi}</div>

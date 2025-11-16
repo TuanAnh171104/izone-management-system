@@ -380,8 +380,10 @@ namespace IZONE.API.Controllers
                     });
                 }
 
-                // Filter by lecturer ID
-                var lecturerLopHocs = allLopHocs.Where(l => l.GiangVienID == giangVienID).ToList();
+                // Filter by lecturer ID và sắp xếp theo lớp mới nhất trước (NgayBatDau giảm dần)
+                var lecturerLopHocs = allLopHocs.Where(l => l.GiangVienID == giangVienID)
+                    .OrderByDescending(l => l.NgayBatDau)
+                    .ToList();
 
                 // Apply status filter
                 var filteredLopHocs = ApplyStatusFilter(lecturerLopHocs, statusFilter);

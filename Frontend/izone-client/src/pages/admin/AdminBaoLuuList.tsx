@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { baoLuuService, BaoLuu, lopHocService, LopHoc, hocVienService, HocVien, dangKyLopService, DangKyLop } from '../../services/api';
 import { mapBaoLuuStatus } from '../../utils/statusMapping';
+import { Visibility, CheckCircle, Cancel } from '@mui/icons-material';
 import '../../styles/Management.css';
 
 interface BaoLuuWithDetails extends BaoLuu {
@@ -32,6 +33,10 @@ const AdminBaoLuuList: React.FC = () => {
     nguoiDuyet: '',
     lyDo: ''
   });
+
+  // State cho modal xem chi tiết
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [detailBaoLuu, setDetailBaoLuu] = useState<BaoLuuWithDetails | null>(null);
 
   useEffect(() => {
     fetchInitialData();
@@ -125,11 +130,11 @@ const AdminBaoLuuList: React.FC = () => {
 
   const getStatusBadge = (trangThai: string) => {
     const statusConfig = {
-      'DangChoDuyet': { color: '#ffc107', icon: '⏳' },
-      'DaDuyet': { color: '#28a745', icon: '✅' },
-      'DaSuDung': { color: '#007bff', icon: '📚' },
-      'TuChoi': { color: '#dc3545', icon: '❌' },
-      'HetHan': { color: '#6c757d', icon: '⏰' }
+      'DangChoDuyet': { color: '#ffc107', icon: '' },
+      'DaDuyet': { color: '#28a745', icon: '' },
+      'DaSuDung': { color: '#007bff', icon: '' },
+      'TuChoi': { color: '#dc3545', icon: '' },
+      'HetHan': { color: '#6c757d', icon: '' }
     };
 
     const config = statusConfig[trangThai as keyof typeof statusConfig] || statusConfig.DangChoDuyet;
@@ -146,7 +151,7 @@ const AdminBaoLuuList: React.FC = () => {
         alignItems: 'center',
         gap: '4px'
       }}>
-        {config.icon} {mapBaoLuuStatus(trangThai)}
+        {mapBaoLuuStatus(trangThai)}
       </span>
     );
   };
@@ -202,6 +207,17 @@ const AdminBaoLuuList: React.FC = () => {
       console.error('Lỗi khi xử lý bảo lưu:', error);
       alert(`Không thể ${approvalAction === 'approve' ? 'duyệt' : 'từ chối'} bảo lưu. Vui lòng thử lại.`);
     }
+  };
+
+  const handleShowDetail = (baoLuu: BaoLuuWithDetails) => {
+    setDetailBaoLuu(baoLuu);
+    setShowDetailModal(true);
+  };
+
+  const truncateText = (text: string | null | undefined, maxLength: number = 50) => {
+    if (!text) return 'Không có';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
   };
 
   if (loading) {
@@ -308,7 +324,6 @@ const AdminBaoLuuList: React.FC = () => {
               <th>Số buổi còn lại</th>
               <th>Hạn bảo lưu</th>
               <th>Trạng thái</th>
-              <th>Lý do</th>
               <th>Người duyệt</th>
               <th>Thao tác</th>
             </tr>
@@ -330,25 +345,52 @@ const AdminBaoLuuList: React.FC = () => {
                   ) : 'Không giới hạn'}
                 </td>
                 <td>{getStatusBadge(baoLuu.trangThai)}</td>
-                <td>{baoLuu.lyDo || 'Không có'}</td>
                 <td>{baoLuu.nguoiDuyet || 'Chưa duyệt'}</td>
                 <td>
                   <div className="action-buttons">
+                    <button
+                      className="btn-view"
+                      onClick={() => handleShowDetail(baoLuu)}
+                      title="Xem chi tiết"
+                      style={{
+                        padding: '4px',
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        borderRadius: '4px'
+                      }}
+                    >
+                      <Visibility fontSize="small" color="action" />
+                    </button>
                     {baoLuu.trangThai === 'DangChoDuyet' && (
                       <>
                         <button
                           className="btn-edit"
                           onClick={() => handleApproval(baoLuu, 'approve')}
                           title="Duyệt bảo lưu"
+                          style={{
+                            padding: '4px',
+                            border: 'none',
+                            background: 'transparent',
+                            cursor: 'pointer',
+                            borderRadius: '4px'
+                          }}
                         >
-                          ✅ Duyệt
+                          <CheckCircle fontSize="small" color="success" />
                         </button>
                         <button
                           className="btn-delete"
                           onClick={() => handleApproval(baoLuu, 'reject')}
                           title="Từ chối bảo lưu"
+                          style={{
+                            padding: '4px',
+                            border: 'none',
+                            background: 'transparent',
+                            cursor: 'pointer',
+                            borderRadius: '4px'
+                          }}
                         >
-                          ❌ Từ chối
+                          <Cancel fontSize="small" color="error" />
                         </button>
                       </>
                     )}
@@ -483,6 +525,181 @@ const AdminBaoLuuList: React.FC = () => {
                 }}
               >
                 {approvalAction === 'approve' ? 'Duyệt' : 'Từ chối'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal xem chi tiết */}
+      {showDetailModal && detailBaoLuu && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            padding: '30px',
+            width: '90%',
+            maxWidth: '600px',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)'
+          }}>
+            <h3 style={{ margin: '0 0 20px 0', color: '#dc2626', textAlign: 'center' }}>
+              Chi tiết bảo lưu #{detailBaoLuu.baoLuuID}
+            </h3>
+
+            {/* Thông tin cơ bản */}
+            <div style={{ marginBottom: '20px' }}>
+              <h4 style={{ margin: '0 0 15px 0', color: '#495057' }}>Thông tin học viên và lớp học</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#495057' }}>
+                    Học viên:
+                  </label>
+                  <p style={{ margin: 0, color: '#dc2626', fontWeight: '500' }}>
+                    {detailBaoLuu.hocVien?.hoTen || 'Không xác định'}
+                  </p>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#495057' }}>
+                    Lớp học:
+                  </label>
+                  <p style={{ margin: 0, color: '#dc2626', fontWeight: '500' }}>
+                    {`Lớp ${detailBaoLuu.lopHoc?.lopID || 'Không xác định'}`}
+                  </p>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#495057' }}>
+                    Email học viên:
+                  </label>
+                  <p style={{ margin: 0, color: '#374151' }}>
+                    {detailBaoLuu.hocVien?.email || 'Không có'}
+                  </p>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#495057' }}>
+                    Ngày sinh:
+                  </label>
+                  <p style={{ margin: 0, color: '#374151' }}>
+                    {detailBaoLuu.hocVien?.ngaySinh ? formatDate(detailBaoLuu.hocVien.ngaySinh) : 'Không có'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Thông tin bảo lưu */}
+            <div style={{ marginBottom: '20px' }}>
+              <h4 style={{ margin: '0 0 15px 0', color: '#495057' }}>Thông tin bảo lưu</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '15px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#495057' }}>
+                    Ngày bảo lưu:
+                  </label>
+                  <p style={{ margin: 0, color: '#374151' }}>
+                    {formatDate(detailBaoLuu.ngayBaoLuu)}
+                  </p>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#495057' }}>
+                    Số buổi còn lại:
+                  </label>
+                  <p style={{ margin: 0, color: '#374151' }}>
+                    {detailBaoLuu.soBuoiConLai}
+                  </p>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#495057' }}>
+                    Hạn bảo lưu:
+                  </label>
+                  <p style={{
+                    margin: 0,
+                    color: !detailBaoLuu.hanBaoLuu ? '#374151' : isExpired(detailBaoLuu.hanBaoLuu) ? '#dc3545' : '#28a745'
+                  }}>
+                    {detailBaoLuu.hanBaoLuu ? formatDate(detailBaoLuu.hanBaoLuu) : 'Không giới hạn'}
+                    {detailBaoLuu.hanBaoLuu && isExpired(detailBaoLuu.hanBaoLuu) && ' (Hết hạn)'}
+                  </p>
+                </div>
+                <div style={{ gridColumn: 'span 3' }}>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#495057' }}>
+                    Trạng thái:
+                  </label>
+                  {getStatusBadge(detailBaoLuu.trangThai)}
+                </div>
+              </div>
+            </div>
+
+            {/* Lý do bảo lưu */}
+            <div style={{ marginBottom: '20px' }}>
+              <h4 style={{ margin: '0 0 15px 0', color: '#495057' }}>Lý do bảo lưu</h4>
+              <div style={{
+                background: '#f8f9fa',
+                border: '1px solid #e9ecef',
+                borderRadius: '8px',
+                padding: '15px',
+                minHeight: '80px',
+                whiteSpace: 'pre-wrap',
+                wordWrap: 'break-word',
+                overflowWrap: 'break-word'
+              }}>
+                {detailBaoLuu.lyDo || (
+                  <span style={{ color: '#6b7280', fontStyle: 'italic' }}>Không có lý do cụ thể</span>
+                )}
+              </div>
+            </div>
+
+            {/* Thông tin duyệt */}
+            {(detailBaoLuu.trangThai === 'DaDuyet' || detailBaoLuu.trangThai === 'TuChoi') && (
+              <div style={{ marginBottom: '20px' }}>
+                <h4 style={{ margin: '0 0 15px 0', color: '#495057' }}>Thông tin duyệt</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#495057' }}>
+                      Người duyệt:
+                    </label>
+                    <p style={{ margin: 0, color: '#374151' }}>
+                      {detailBaoLuu.nguoiDuyet || 'Không xác định'}
+                    </p>
+                  </div>
+                  {detailBaoLuu.trangThai === 'TuChoi' && detailBaoLuu.lyDo && detailBaoLuu.lyDo !== detailBaoLuu.lyDo && (
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', color: '#495057' }}>
+                        Lý do từ chối:
+                      </label>
+                      <p style={{ margin: 0, color: '#dc3545', fontStyle: 'italic' }}>
+                        {detailBaoLuu.lyDo}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <button
+                onClick={() => setShowDetailModal(false)}
+                style={{
+                  padding: '12px 24px',
+                  background: '#6c757d',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                Đóng
               </button>
             </div>
           </div>

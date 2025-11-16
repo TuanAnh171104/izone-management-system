@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { diaDiemService, DiaDiem, thueMatBangService, ThueMatBang, lopHocService, LopHoc } from '../../services/api';
+import { Edit, DeleteForever } from '@mui/icons-material';
 import '../../styles/Management.css';
 
 const AdminDiaDiemList: React.FC = () => {
@@ -486,8 +487,15 @@ const AdminDiaDiemList: React.FC = () => {
                         handleEdit();
                       }}
                       title="Chỉnh sửa"
+                      style={{
+                        padding: '4px',
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        borderRadius: '4px'
+                      }}
                     >
-                      ✏️
+                      <Edit fontSize="small" color="action" />
                     </button>
                     <button
                       className="btn-delete"
@@ -496,8 +504,15 @@ const AdminDiaDiemList: React.FC = () => {
                         handleDelete();
                       }}
                       title="Xóa"
+                      style={{
+                        padding: '4px',
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        borderRadius: '4px'
+                      }}
                     >
-                      🗑️
+                      <DeleteForever fontSize="small" color="error" />
                     </button>
                   </div>
                 </div>
@@ -618,8 +633,15 @@ const AdminDiaDiemList: React.FC = () => {
                             className="btn-delete"
                             onClick={() => handleDeleteContract(thue)}
                             title="Xóa"
+                            style={{
+                              padding: '4px',
+                              border: 'none',
+                              background: 'transparent',
+                              cursor: 'pointer',
+                              borderRadius: '4px'
+                            }}
                           >
-                            🗑️
+                            <DeleteForever fontSize="small" color="error" />
                           </button>
                         </div>
                       </div>

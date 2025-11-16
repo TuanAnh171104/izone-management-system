@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { hocVienService, HocVien } from '../../services/api';
 import StudentDetailsModal from '../../components/StudentDetailsModal';
+import { Visibility, Edit, DeleteForever } from '@mui/icons-material';
 import '../../styles/Management.css';
 
 interface PaginationInfo {
@@ -319,22 +320,43 @@ const AdminStudents: React.FC = () => {
                       className="btn-view"
                       onClick={() => handleViewStudentDetails(hv)}
                       title="Xem chi tiết"
+                      style={{
+                        padding: '4px',
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        borderRadius: '4px'
+                      }}
                     >
-                      👁️
+                      <Visibility fontSize="small" color="action" />
                     </button>
                     <button
                       className="btn-edit"
                       onClick={() => handleEditStudent(hv)}
                       title="Chỉnh sửa"
+                      style={{
+                        padding: '4px',
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        borderRadius: '4px'
+                      }}
                     >
-                      ✏️
+                      <Edit fontSize="small" color="action" />
                     </button>
                     <button
                       className="btn-delete"
                       onClick={() => handleDeleteStudent(hv.hocVienID)}
                       title="Xóa"
+                      style={{
+                        padding: '4px',
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        borderRadius: '4px'
+                      }}
                     >
-                      🗑️
+                      <DeleteForever fontSize="small" color="error" />
                     </button>
                   </div>
                 </td>

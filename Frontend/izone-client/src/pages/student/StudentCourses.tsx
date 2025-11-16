@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { khoaHocService, lopHocService, dangKyLopService } from '../../services/api';
 import {
-  FaBaby,
-  FaKeyboard,
-  FaBrain,
-  FaBook,
-  FaMedal,
-  FaChevronRight,
-} from "react-icons/fa";
+  ChildCare,
+  Keyboard,
+  Psychology,
+  MenuBook,
+  EmojiEvents,
+  ChevronRight,
+} from "@mui/icons-material";
 import ClassSelectionModal from '../../components/ClassSelectionModal';
 import '../../styles/Management.css';
 
@@ -209,7 +209,7 @@ const StudentCourses: React.FC = () => {
       level: 1,
       name: "SƠ SINH",
       range: "0 - 3.0 IELTS",
-      icon: FaBaby,
+      icon: ChildCare,
       color: "#4F46E5",
       bgColor: "#DBEAFE",
       iconColor: "#4F46E5",
@@ -230,7 +230,7 @@ const StudentCourses: React.FC = () => {
       level: 2,
       name: "VỠ LÒNG",
       range: "3.0 - 4.0 IELTS",
-      icon: FaKeyboard,
+      icon: Keyboard,
       color: "#7C3AED",
       bgColor: "#EDE9FE",
       iconColor: "#7C3AED",
@@ -254,7 +254,7 @@ const StudentCourses: React.FC = () => {
       level: 3,
       name: "PRE IELTS",
       range: "4.0 - 5.0 IELTS",
-      icon: FaBrain,
+      icon: Psychology,
       color: "#EC4899",
       bgColor: "#FCE7F3",
       iconColor: "#EC4899",
@@ -278,7 +278,7 @@ const StudentCourses: React.FC = () => {
       level: 4,
       name: "CHIẾN LƯỢC",
       range: "5.0 - 6.0 IELTS",
-      icon: FaBook,
+      icon: MenuBook,
       color: "#F59E0B",
       bgColor: "#FEF3C7",
       iconColor: "#F59E0B",
@@ -300,7 +300,7 @@ const StudentCourses: React.FC = () => {
       level: 5,
       name: "CHUYÊN SÂU",
       range: "6.0 - 7.0 IELTS",
-      icon: FaMedal,
+      icon: EmojiEvents,
       color: "#EF4444",
       bgColor: "#FEE2E2",
       iconColor: "#EF4444",

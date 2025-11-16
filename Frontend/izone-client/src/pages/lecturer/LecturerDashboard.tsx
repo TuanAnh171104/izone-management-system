@@ -34,17 +34,28 @@ const LecturerDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [lecturerName, setLecturerName] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
-  // Date range filter state
-  const [dateRange, setDateRange] = useState<{start: Date, end: Date}>({
-    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 ngày trước mặc định
-    end: new Date()
-  });
+  // useEffect riêng cho việc fetch sessions theo ngày - tối ưu để tránh reload toàn trang
+  useEffect(() => {
+    const fetchSessions = async () => {
+      try {
+        const todayResp = await giangVienService.getSessionsByDate(selectedDate);
+        setTodaySessions(todayResp?.sessions || []);
+      } catch (err: any) {
+        console.error('Lỗi khi lấy sessions theo ngày:', err);
+        setError('Không thể tải dữ liệu lịch dạy');
+      }
+    };
 
+    fetchSessions();
+  }, [selectedDate]);
+
+  // useEffect chính cho data không thay đổi theo ngày
   useEffect(() => {
     let intervalId: any;
 
-    const fetchAll = async () => {
+    const fetchMainData = async () => {
       try {
         setLoading(true);
         setError(null);
@@ -56,14 +67,8 @@ const LecturerDashboard: React.FC = () => {
           setLecturerName(u.hoTen || u.tenDangNhap || null);
         }
 
-        // Filter data by date range where applicable
-        // Calculate weeks for attendance based on date range
-        const timeDiffMs = dateRange.end.getTime() - dateRange.start.getTime();
-        const weeks = Math.ceil(timeDiffMs / (7 * 24 * 60 * 60 * 1000));
-
-        const [todayResp, attendanceResp, pendingResp, lopResp] = await Promise.all([
-          giangVienService.getTodaySessions(),
-          giangVienService.getWeeklyAttendance(weeks),
+        const [attendanceResp, pendingResp, lopResp] = await Promise.all([
+          giangVienService.getWeeklyAttendance(4), // Hiển thị dữ liệu 4 tuần gần đây
           giangVienService.getPendingTasks(),
           // Use authenticated API call to /api/giangvien/lop-hoc
           apiClient.get('/giangvien/lop-hoc').then(res => res.data)
@@ -87,10 +92,7 @@ const LecturerDashboard: React.FC = () => {
           totalStudents
         });
 
-        // Today sessions
-        setTodaySessions(todayResp?.sessions || []);
-
-        // Attendance weekly (filtered by date range if endpoint supports it)
+        // Attendance weekly
         const attendanceWeeksData = Array.isArray(attendanceResp) ? attendanceResp : [];
         setAttendanceWeekly(attendanceWeeksData.map((w: any) => ({
           Label: w.Week?.toString() || w.Label?.toString() || `Tuần ${w.Week || 1}`,
@@ -109,10 +111,10 @@ const LecturerDashboard: React.FC = () => {
       }
     };
 
-    fetchAll();
-    intervalId = setInterval(fetchAll, 600000); // Refresh every 10 minutes
+    fetchMainData();
+    intervalId = setInterval(fetchMainData, 600000); // Refresh every 10 minutes
     return () => clearInterval(intervalId);
-  }, [dateRange]);
+  }, []); // Không có dependency để tránh reload không cần thiết
 
   if (loading) {
     return (
@@ -142,147 +144,7 @@ const LecturerDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Date Range Filter - Modern Design */}
-      <div style={{
-        margin: '10px 20px',
-        background: 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)',
-        borderRadius: '12px',
-        padding: '20px',
-        boxShadow: '0 4px 12px rgba(220, 38, 38, 0.3)',
-        border: '1px solid rgba(255, 255, 255, 0.1)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          {/* Filter Icon and Title */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '160px' }}>
-            <span style={{ fontSize: '18px' }}>📅</span>
-            <div>
-              <h4 style={{
-                margin: '0',
-                color: 'white',
-                fontSize: '14px',
-                fontWeight: '600',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px'
-              }}>
-                Lọc dữ liệu
-              </h4>
-              <small style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px' }}>
-                Theo khoảng thời gian
-              </small>
-            </div>
-          </div>
 
-          {/* Date Pickers */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            background: 'rgba(255, 255, 255, 0.1)',
-            borderRadius: '8px',
-            padding: '8px 12px',
-            border: '1px solid rgba(255, 255, 255, 0.2)'
-          }}>
-            <span style={{ color: 'white', fontSize: '13px', fontWeight: '500' }}>Từ:</span>
-            <input
-              type="date"
-              value={dateRange.start.toISOString().split('T')[0]}
-              onChange={(e) => setDateRange(prev => ({
-                ...prev,
-                start: new Date(e.target.value)
-              }))}
-              style={{
-                padding: '6px 8px',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                borderRadius: '4px',
-                background: 'white',
-                color: '#333',
-                fontSize: '13px',
-                minWidth: '130px'
-              }}
-            />
-            <span style={{ color: 'white', fontSize: '13px', fontWeight: '500' }}>đến:</span>
-            <input
-              type="date"
-              value={dateRange.end.toISOString().split('T')[0]}
-              onChange={(e) => setDateRange(prev => ({
-                ...prev,
-                end: new Date(e.target.value)
-              }))}
-              style={{
-                padding: '6px 8px',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                borderRadius: '4px',
-                background: 'white',
-                color: '#333',
-                fontSize: '13px',
-                minWidth: '130px'
-              }}
-            />
-          </div>
-
-          {/* Quick Date Buttons */}
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {[
-              { label: '7 ngày', days: 7, color: '#007bff', icon: '📅' },
-              { label: '30 ngày', days: 30, color: '#28a745', icon: '📊' },
-              { label: '3 tháng', days: 90, color: '#ffc107', icon: '📈' }
-            ].map((preset) => (
-              <button
-                key={preset.label}
-                onClick={() => setDateRange({
-                  start: new Date(Date.now() - preset.days * 24 * 60 * 60 * 1000),
-                  end: new Date()
-                })}
-                style={{
-                  padding: '6px 10px',
-                  background: preset.color,
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  fontWeight: '500',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
-                }}
-              >
-                <span>{preset.icon}</span>
-                {preset.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Current Date Range Display */}
-          <div style={{
-            marginLeft: 'auto',
-            background: 'rgba(255, 255, 255, 0.1)',
-            borderRadius: '6px',
-            padding: '6px 12px',
-            border: '1px solid rgba(255, 255, 255, 0.2)'
-          }}>
-            <small style={{
-              color: 'white',
-              fontSize: '12px',
-              fontWeight: '500'
-            }}>
-              Đang xem: {dateRange.start.toLocaleDateString('vi-VN')}
-              {' → '}
-              {dateRange.end.toLocaleDateString('vi-VN')}
-            </small>
-          </div>
-        </div>
-      </div>
 
       <div style={{ padding: '0 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <small style={{ color: '#666' }}>
@@ -454,11 +316,38 @@ const LecturerDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Lịch dạy hôm nay */}
+      {/* Lịch dạy */}
       <div style={{ padding: '0 20px 20px 20px' }}>
-        <h3 style={{ color: '#333', margin: '0 0 15px 0', fontSize: '20px', fontWeight: '600' }}>
-          📆 Lịch dạy hôm nay
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px' }}>
+          <h3 style={{ color: '#333', margin: '0', fontSize: '20px', fontWeight: '600' }}>
+            📆 Lịch dạy ngày {new Date(selectedDate).toLocaleDateString('vi-VN')}
+          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '14px', color: '#666', fontWeight: '500' }}>Chọn ngày:</span>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              style={{
+                padding: '6px 10px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                background: '#fff',
+                color: '#374151',
+                fontSize: '14px',
+                cursor: 'pointer',
+                transition: 'border-color 0.2s ease',
+                minWidth: '160px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = '#3b82f6';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = '#d1d5db';
+              }}
+            />
+          </div>
+        </div>
         <div style={{
           width: '100%',
           height: '100%',
@@ -586,7 +475,7 @@ const LecturerDashboard: React.FC = () => {
                         {s.diaDiem || s.DiaDiem || 'Chưa xác định'}
                       </td>
                       <td style={{ padding: '14px 12px', textAlign: 'right', color: '#374151', fontWeight: '600' }}>
-                        {s.SoHocVienDangKy ?? '-'}
+                        {s.soHocVienDangKy ?? '-'}
                       </td>
                     </tr>
                   ))}
