@@ -324,7 +324,7 @@ namespace IZONE.Infrastructure.Services
         /// </summary>
         public async Task<IEnumerable<BuoiHoc>> RecreateBuoiHocTuDongAsync(int lopHocId)
         {
-            _logger.LogInformation("=== BẮT ĐẦU TÁI TẠO BUỔI HỌC TỰ ĐỘNG ===");
+            _logger.LogInformation("=== BẮT ĐẦU TÁI TẠO BUỔI HỌC TỰ ĐỘNG (LOGIC MỚI) ===");
             _logger.LogInformation("LopHocID: {LopHocId}", lopHocId);
 
             // Lấy thông tin lớp học
@@ -357,15 +357,16 @@ namespace IZONE.Infrastructure.Services
             }
 
             var today = DateTime.Today;
-            var classHasStarted = lopHoc.NgayBatDau <= today;
+            _logger.LogInformation("Lịch và ngày hôm nay: {NgayHoc}, {Today}",
+                lopHoc.NgayHocTrongTuan, today.ToString("yyyy-MM-dd"));
 
-            _logger.LogInformation("Lớp học đã bắt đầu: {ClassHasStarted} (Ngày bắt đầu: {NgayBatDau}, Hôm nay: {Today})",
-                classHasStarted, lopHoc.NgayBatDau.ToString("yyyy-MM-dd"), today.ToString("yyyy-MM-dd"));
+            // ==========================================
+            // LOGIC MỚI: GIỮ NGUYÊN BUỔI ĐÃ DIỄN RA, CHỈ ĐỔI BUỔI CHƯA DIỄN RA
+            // ==========================================
 
-            // XÓA CÁC BUỔI HỌC CŨ
-            _logger.LogInformation("Bắt đầu xử lý các buổi học cũ...");
+            _logger.LogInformation("=== BƯỚC 1: LẤY DANH SÁCH BUỔI HỌC HIỆN TẠI ===");
 
-            // Lấy danh sách buổi học hiện tại
+            // Lấy danh sách buổi học hiện tại có kèm dữ liệu điểm danh
             var existingBuoiHocs = await _context.BuoiHocs
                 .Where(b => b.LopID == lopHocId)
                 .Include(b => b.DiemDanhs)
@@ -373,129 +374,282 @@ namespace IZONE.Infrastructure.Services
 
             _logger.LogInformation("Tìm thấy {Count} buổi học hiện tại", existingBuoiHocs.Count);
 
-            var buoiHocToDelete = new List<BuoiHoc>();
-            var buoiHocToUpdate = new List<BuoiHoc>();
-            var buoiHocUntouchable = new List<BuoiHoc>();
+            var buoiHocPast = new List<BuoiHoc>();     // Buổi đã diễn ra (bảo vệ)
+            var buoiHocFutureEditable = new List<BuoiHoc>(); // Buổi tương lai có dữ liệu (có thể cập nhật)
+            var buoiHocFutureEmpty = new List<BuoiHoc>();    // Buổi tương lai không có dữ liệu (xóa)
+
+            foreach (var buoiHoc in existingBuoiHocs)
+            {
+                var sessionDate = buoiHoc.NgayHoc.Date;
+                var sessionHasPassed = sessionDate < today;
+                var hasDiemDanh = buoiHoc.DiemDanhs != null && buoiHoc.DiemDanhs.Any();
+
+                _logger.LogDebug("Buổi học {BuoiHocId}: Ngày {Ngay}, Đã qua: {Passed}, Có điểm danh: {HasData}",
+                    buoiHoc.BuoiHocID, sessionDate.ToString("yyyy-MM-dd"), sessionHasPassed, hasDiemDanh);
+
+                if (sessionHasPassed)
+                {
+                    // BUỔI ĐÃ DIỄN RA → GIỮ NGUYÊN NUÔN (bảo vệ dữ liệu)
+                    buoiHocPast.Add(buoiHoc);
+                    _logger.LogInformation("🛡️ Buổi đã diễn ra {BuoiHocId} ({Ngay}) - GIỮ NGUYÊN",
+                        buoiHoc.BuoiHocID, sessionDate.ToString("yyyy-MM-dd"));
+                }
+                else if (hasDiemDanh)
+                {
+                    // BUỔI TƯƠNG LAI CÓ DỮ LIỆU → UPDATE THÔNG TIN MỚI
+                    buoiHocFutureEditable.Add(buoiHoc);
+                    _logger.LogInformation("✏️ Buổi tương lai có dữ liệu {BuoiHocId} ({Ngay}) - SẼ UPDATE",
+                        buoiHoc.BuoiHocID, sessionDate.ToString("yyyy-MM-dd"));
+                }
+                else
+                {
+                    // BUỔI TƯƠNG LAI TRỐNG → XÓA ĐI VÀ TẠO LẠI
+                    buoiHocFutureEmpty.Add(buoiHoc);
+                    _logger.LogInformation("🗑️ Buổi tương lai trống {BuoiHocId} ({Ngay}) - SẼ XÓA THAY BẰNG BUỔI MỚI",
+                        buoiHoc.BuoiHocID, sessionDate.ToString("yyyy-MM-dd"));
+                }
+            }
+
+            _logger.LogInformation("=== PHÂN LOẠI HOÀN THÀNH ===");
+            _logger.LogInformation("Buổi đã diễn ra: {Past}, Buổi tương lai có dữ liệu: {FutureData}, Buổi tương lai trống: {FutureEmpty}",
+                buoiHocPast.Count, buoiHocFutureEditable.Count, buoiHocFutureEmpty.Count);
+
+            _logger.LogInformation("=== BƯỚC 2: XÓA BUỔI TƯƠNG LAI KHÔNG KHỚP LỊCH MỚI ===");
+
+            // 🔥 FIX: Xóa TẤT CẢ buổi tương lai KHÔNG KHỚP lịch mới
+            // Trước tiên tính những ngày nào hợp lệ trong lịch mới (từ hôm nay trở đi)
+            var validFutureDates = await CalculateNgayHocAsync(
+                lopHoc.NgayBatDau,
+                lopHoc.NgayKetThuc.Value,
+                lopHoc.NgayHocTrongTuan
+            );
+
+            validFutureDates = validFutureDates.Where(date => date.Date >= today).ToList();
+
+            var sessionsToDelete = new List<BuoiHoc>();
 
             foreach (var buoiHoc in existingBuoiHocs)
             {
                 var sessionDate = buoiHoc.NgayHoc.Date;
                 var sessionHasPassed = sessionDate < today;
 
-                // Kiểm tra xem buổi học có dữ liệu điểm danh không
-                bool hasDiemDanh = buoiHoc.DiemDanhs != null && buoiHoc.DiemDanhs.Any();                
-
-                bool hasImportantData = hasDiemDanh;
-
-                _logger.LogDebug("Buổi học {BuoiHocId} ngày {NgayHoc}: Đã qua={SessionHasPassed}, Có dữ liệu={HasImportantData}",
-                    buoiHoc.BuoiHocID, sessionDate.ToString("yyyy-MM-dd"), sessionHasPassed, hasImportantData);
-
-                if (classHasStarted && sessionHasPassed && hasImportantData)
+                // Chỉ xử lý buổi chưa diễn ra
+                if (!sessionHasPassed)
                 {
-                    // Buổi học đã qua và có dữ liệu quan trọng - không được động vào
-                    buoiHocUntouchable.Add(buoiHoc);
-                    _logger.LogInformation("Buổi học {BuoiHocId} ngày {NgayHoc} đã qua và có dữ liệu - giữ nguyên",
-                        buoiHoc.BuoiHocID, sessionDate.ToString("yyyy-MM-dd"));
-                }
-                else if (hasImportantData)
-                {
-                    // Buổi học có dữ liệu nhưng chưa qua - có thể cập nhật thông tin
-                    buoiHocToUpdate.Add(buoiHoc);
-                    _logger.LogInformation("Buổi học {BuoiHocId} ngày {NgayHoc} có dữ liệu - sẽ cập nhật",
-                        buoiHoc.BuoiHocID, sessionDate.ToString("yyyy-MM-dd"));
-                }
-                else
-                {
-                    // Buổi học không có dữ liệu - có thể xóa
-                    buoiHocToDelete.Add(buoiHoc);
-                    _logger.LogInformation("Buổi học {BuoiHocId} ngày {NgayHoc} không có dữ liệu - sẽ xóa",
-                        buoiHoc.BuoiHocID, sessionDate.ToString("yyyy-MM-dd"));
+                    // Kiểm tra xem buổi này có nằm trong lịch mới không
+                    var isInNewSchedule = validFutureDates.Any(validDate => validDate.Date == sessionDate);
+
+                    if (!isInNewSchedule)
+                    {
+                        sessionsToDelete.Add(buoiHoc);
+                        _logger.LogInformation("🗑️ Buổi {BuoiHocId} ngày {Ngay} không nằm trong lịch mới - sẽ xóa",
+                            buoiHoc.BuoiHocID, sessionDate.ToString("yyyy-MM-dd"));
+                    }
+                    else
+                    {
+                        _logger.LogInformation("✅ Buổi {BuoiHocId} ngày {Ngay} nằm trong lịch mới - giữ lại",
+                            buoiHoc.BuoiHocID, sessionDate.ToString("yyyy-MM-dd"));
+                    }
                 }
             }
 
-            // Xóa các buổi học không có dữ liệu
-            if (buoiHocToDelete.Any())
+            // Xóa các buổi không khớp lịch
+            if (sessionsToDelete.Any())
             {
-                _context.BuoiHocs.RemoveRange(buoiHocToDelete);
+                // 🔥 FIX: Xóa DiemDanh trước để tránh conflict với DeleteBehavior.Restrict
+                var diemDanhToDelete = new List<DiemDanh>();
+                foreach (var buoiHoc in sessionsToDelete)
+                {
+                    if (buoiHoc.DiemDanhs?.Any() == true)
+                    {
+                        diemDanhToDelete.AddRange(buoiHoc.DiemDanhs);
+                        _logger.LogInformation("🗑️ Sẽ xóa {Count} điểm danh của buổi {BuoiHocId}",
+                            buoiHoc.DiemDanhs.Count, buoiHoc.BuoiHocID);
+                    }
+                }
+
+                if (diemDanhToDelete.Any())
+                {
+                    _context.DiemDanhs.RemoveRange(diemDanhToDelete);
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation("✅ Đã xóa {Count} điểm danh của các buổi không khớp lịch", diemDanhToDelete.Count);
+                }
+
+                // Bây giờ mới xóa BuoiHoc
+                _context.BuoiHocs.RemoveRange(sessionsToDelete);
                 await _context.SaveChangesAsync();
-                _logger.LogInformation("Đã xóa {Count} buổi học cũ không có dữ liệu", buoiHocToDelete.Count);
+                _logger.LogInformation("✅ Đã xóa {Count} buổi học không khớp lịch mới", sessionsToDelete.Count);
             }
 
-            // TẠO LẠI CÁC BUỔI HỌC MỚI
-            _logger.LogInformation("Bắt đầu tạo lại các buổi học mới...");
+            // Cập nhật danh sách sau khi xóa
+            buoiHocFutureEditable = buoiHocFutureEditable
+                .Where(b => !sessionsToDelete.Contains(b))
+                .ToList();
 
-            // Parse ca học để lấy thời gian bắt đầu và kết thúc
+            _logger.LogInformation("=== BƯỚC 3: TẠO LẠI BUỔI HỌC THEO LỊCH MỚI ===");
+
+            // Parse ca học mới
             var (thoiGianBatDau, thoiGianKetThuc) = ParseCaHoc(lopHoc.CaHoc);
+            _logger.LogInformation("Ca học mới: {CaHoc} → {Start} đến {End}",
+                lopHoc.CaHoc, thoiGianBatDau.ToString(@"hh\:mm"), thoiGianKetThuc.ToString(@"hh\:mm"));
 
-            // Tính toán các ngày học
-            var ngayHocList = await CalculateNgayHocAsync(
+            // Tính toán ngày học mới theo lịch mới
+            var ngayHocListMoi = await CalculateNgayHocAsync(
                 lopHoc.NgayBatDau,
                 lopHoc.NgayKetThuc.Value,
                 lopHoc.NgayHocTrongTuan
             );
 
-            _logger.LogInformation("Tính toán được {Count} ngày học mới cho lớp {LopHocId}", ngayHocList.Count(), lopHocId);
+            _logger.LogInformation("📅 Lịch mới tạo ra {Count} buổi học từ {Start} đến {End}",
+                ngayHocListMoi.Count(), lopHoc.NgayBatDau.ToString("yyyy-MM-dd"), lopHoc.NgayKetThuc.Value.ToString("yyyy-MM-dd"));
 
-            var buoiHocList = new List<BuoiHoc>();
+            var buoiHocDaXuLy = new List<BuoiHoc>();
+            var buoiHocMoiTao = 0;
 
-            // Xử lý từng ngày học
-            foreach (var ngayHoc in ngayHocList)
+            // Thêm tất cả buổi học đã tồn tại vào danh sách
+            buoiHocDaXuLy.AddRange(buoiHocPast);
+
+            // 🔧 FIX: Chỉ lấy các buổi học MỚI từ NGÀY HÔM NAY trở đi
+            // KHÔNG tạo buổi học trong quá khứ cho lịch mới!
+            var ngayHocMoiSauNgayHienTai = ngayHocListMoi.Where(ngay =>
+                ngay.Date >= today).ToList();
+
+            _logger.LogInformation("🎯 Chỉ tạo {Count} buổi học tương lai (từ {Today} trở đi)",
+                ngayHocMoiSauNgayHienTai.Count, today.ToString("yyyy-MM-dd"));
+            _logger.LogInformation("📅 Bỏ qua {Count} buổi trong quá khứ: {SkippedDates}",
+                ngayHocListMoi.Count() - ngayHocMoiSauNgayHienTai.Count,
+                string.Join(", ", ngayHocListMoi.Where(ngay => ngay.Date < today).Select(d => d.ToString("yyyy-MM-dd"))));
+
+            // Xử lý từng ngày học mới - CHỈ NHỮNG NGÀY TƯƠNG LAI
+            foreach (var ngayHoc in ngayHocMoiSauNgayHienTai)
             {
                 try
                 {
                     var sessionDate = ngayHoc.Date;
-                    var sessionHasPassed = sessionDate < today;
+                    _logger.LogDebug("🔄 Xử lý ngày: {Ngay}", sessionDate.ToString("yyyy-MM-dd"));
 
-                    // Kiểm tra xem buổi học đã tồn tại chưa
-                    var existingBuoiHoc = buoiHocToUpdate.FirstOrDefault(b => b.NgayHoc.Date == sessionDate) ??
-                                         buoiHocUntouchable.FirstOrDefault(b => b.NgayHoc.Date == sessionDate);
+                    //  FIX: Luôn kiểm tra trực tiếp từ database thay vì dựa vào danh sách trong memory
+                    var existingSession = await _context.BuoiHocs
+                        .FirstOrDefaultAsync(b => b.LopID == lopHocId && b.NgayHoc.Date == sessionDate);
 
-                    if (existingBuoiHoc != null)
+                    if (existingSession != null)
                     {
-                        // Buổi học đã tồn tại
-                        if (buoiHocUntouchable.Contains(existingBuoiHoc))
-                        {
-                            // Buổi học đã qua và có dữ liệu - chỉ thêm vào danh sách, không cập nhật
-                            buoiHocList.Add(existingBuoiHoc);
-                            _logger.LogInformation("Giữ nguyên buổi học đã qua {BuoiHocId} cho ngày {NgayHoc} của lớp {LopHocId}",
-                                existingBuoiHoc.BuoiHocID, sessionDate.ToString("yyyy-MM-dd"), lopHocId);
-                        }
-                        else
-                        {
-                            // Buổi học có dữ liệu nhưng chưa qua - cập nhật thông tin
-                            existingBuoiHoc.ThoiGianBatDau = thoiGianBatDau;
-                            existingBuoiHoc.ThoiGianKetThuc = thoiGianKetThuc;
-                            existingBuoiHoc.DiaDiemID = lopHoc.DiaDiemID;
+                        // BUỔI HỌC ĐÃ TỒN TẠI → UPDATE THÔNG TIN MỚI (luôn update để đảm bảo ca học mới)
+                        existingSession.ThoiGianBatDau = thoiGianBatDau;
+                        existingSession.ThoiGianKetThuc = thoiGianKetThuc;
+                        existingSession.DiaDiemID = lopHoc.DiaDiemID;
 
-                            buoiHocList.Add(existingBuoiHoc);
-                            _logger.LogInformation("Đã cập nhật buổi học có dữ liệu {BuoiHocId} cho ngày {NgayHoc} của lớp {LopHocId}",
-                                existingBuoiHoc.BuoiHocID, sessionDate.ToString("yyyy-MM-dd"), lopHocId);
-                        }
+                        buoiHocDaXuLy.Add(existingSession);
+                        _logger.LogInformation("🔄 Đã cập nhật buổi học {BuoiHocId} cho ngày {Ngay} với ca mới {CaHoc}",
+                            existingSession.BuoiHocID, sessionDate.ToString("yyyy-MM-dd"),
+                            $"{thoiGianBatDau:hh\\:mm}-{thoiGianKetThuc:hh\\:mm}");
                     }
                     else
                     {
-                        // Tạo buổi học mới
-                        var buoiHoc = await CreateBuoiHocAsync(lopHocId, ngayHoc, thoiGianBatDau, thoiGianKetThuc);
-                        buoiHocList.Add(buoiHoc);
-                        _logger.LogInformation("Đã tạo buổi học mới cho ngày {NgayHoc} của lớp {LopHocId}",
-                            sessionDate.ToString("yyyy-MM-dd"), lopHocId);
+                        // CHƯA CÓ BUỔI HỌC CHO NGÀY NÀY → TẠO MỚI
+                        var buoiHocMoi = await CreateBuoiHocAsync(lopHocId, ngayHoc, thoiGianBatDau, thoiGianKetThuc);
+                        buoiHocDaXuLy.Add(buoiHocMoi);
+                        buoiHocMoiTao++;
+                        _logger.LogInformation("🆕 Đã tạo buổi học mới {BuoiHocId} cho ngày {Ngay} với ca {CaHoc}",
+                            buoiHocMoi.BuoiHocID, sessionDate.ToString("yyyy-MM-dd"),
+                            $"{thoiGianBatDau:hh\\:mm}-{thoiGianKetThuc:hh\\:mm}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Lỗi khi tạo/cập nhật buổi học cho ngày {NgayHoc} của lớp {LopHocId}", ngayHoc.ToString("yyyy-MM-dd"), lopHocId);
-                    // Tiếp tục tạo các buổi học khác
+                    _logger.LogError(ex, "❌ Lỗi xử lý ngày {Ngay}: {Error}", ngayHoc.ToString("yyyy-MM-dd"), ex.Message);
+                    // Tiếp tục để tránh dừng toàn bộ quá trình
                 }
             }
 
+            // Lưu các thay đổi update
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("=== HOÀN THÀNH TÁI TẠO BUỔI HỌC TỰ ĐỘNG ===");
-            _logger.LogInformation("Đã xử lý {Total} buổi học cho lớp {LopHocId} (xóa {Deleted}, cập nhật {Updated}, giữ nguyên {Untouchable}, tạo mới {Created})",
-                buoiHocList.Count, lopHocId, buoiHocToDelete.Count, buoiHocToUpdate.Count, buoiHocUntouchable.Count,
-                buoiHocList.Count - buoiHocToUpdate.Count - buoiHocUntouchable.Count);
+            _logger.LogInformation("=== HOÀN THÀNH: CẬP NHẬT BUỔI HỌC THEO LỊCH MỚI ===");
+            _logger.LogInformation("📊 TỔNG KẾT:");
+            _logger.LogInformation("   - Buổi đã diễn ra (bảo vệ): {Past}", buoiHocPast.Count);
+            _logger.LogInformation("   - Buổi cập nhật: {Updated}", buoiHocFutureEditable.Count);
+            _logger.LogInformation("   - Buổi xóa (trống): {Deleted}", buoiHocFutureEmpty.Count);
+            _logger.LogInformation("   - Buổi mới tạo: {Created}", buoiHocMoiTao);
+            _logger.LogInformation("   - Tổng buổi hiện tại: {Total}", buoiHocDaXuLy.Count);
 
-            return buoiHocList;
+            return buoiHocDaXuLy;
+        }
+
+        /// <summary>
+        /// Cập nhật thông tin giảng viên và địa điểm cho các buổi học tương lai
+        /// </summary>
+        public async Task UpdateBuoiHocThongTinAsync(int lopHocId, int? giangVienId = null, int? diaDiemId = null)
+        {
+            _logger.LogInformation("=== BẮT ĐẦU CẬP NHẬT THÔNG TIN BUỔI HỌC TƯƠNG LAI ===");
+            _logger.LogInformation("LopHocID: {LopHocId}, GiangVienID: {GiangVienId}, DiaDiemID: {DiaDiemId}", lopHocId, giangVienId, diaDiemId);
+
+            if (giangVienId == null && diaDiemId == null)
+            {
+                _logger.LogWarning("Không có thông tin nào để cập nhật cho lớp {LopHocId}", lopHocId);
+                return;
+            }
+
+            var today = DateTime.Today;
+
+            // Lấy tất cả buổi học tương lai của lớp
+            var futureBuoiHocs = await _context.BuoiHocs
+                .Where(b => b.LopID == lopHocId && b.NgayHoc.Date >= today)
+                .ToListAsync();
+
+            _logger.LogInformation("Tìm thấy {Count} buổi học tương lai cần cập nhật", futureBuoiHocs.Count);
+
+            if (!futureBuoiHocs.Any())
+            {
+                _logger.LogInformation("Không có buổi học tương lai nào cho lớp {LopHocId}", lopHocId);
+                return;
+            }
+
+            var updatedCount = 0;
+
+            foreach (var buoiHoc in futureBuoiHocs)
+            {
+                var hasChanges = false;
+
+                // Cập nhật giảng viên nếu được chỉ định
+                if (giangVienId.HasValue && buoiHoc.GiangVienThayTheID != giangVienId.Value)
+                {
+                    buoiHoc.GiangVienThayTheID = giangVienId.Value;
+                    hasChanges = true;
+                    _logger.LogDebug("Cập nhật GiangVienThayTheID từ {Old} thành {New} cho buổi {BuoiHocId}",
+                        buoiHoc.GiangVienThayTheID, giangVienId.Value, buoiHoc.BuoiHocID);
+                }
+
+                // Cập nhật địa điểm nếu được chỉ định
+                if (diaDiemId.HasValue && buoiHoc.DiaDiemID != diaDiemId.Value)
+                {
+                    buoiHoc.DiaDiemID = diaDiemId.Value;
+                    hasChanges = true;
+                    _logger.LogDebug("Cập nhật DiaDiemID từ {Old} thành {New} cho buổi {BuoiHocId}",
+                        buoiHoc.DiaDiemID, diaDiemId.Value, buoiHoc.BuoiHocID);
+                }
+
+                if (hasChanges)
+                {
+                    updatedCount++;
+                    _logger.LogInformation("Đã cập nhật thông tin cho buổi học {BuoiHocId} vào ngày {Ngay}",
+                        buoiHoc.BuoiHocID, buoiHoc.NgayHoc.ToString("yyyy-MM-dd"));
+                }
+            }
+
+            // Lưu thay đổi
+            if (updatedCount > 0)
+            {
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("✅ Đã cập nhật thông tin cho {Count}/{Total} buổi học tương lai",
+                    updatedCount, futureBuoiHocs.Count);
+            }
+            else
+            {
+                _logger.LogInformation("ℹ️ Không có buổi học nào cần cập nhật thông tin");
+            }
+
+            _logger.LogInformation("=== HOÀN THÀNH CẬP NHẬT THÔNG TIN BUỔI HỌC TƯƠNG LAI ===");
         }
     }
 }

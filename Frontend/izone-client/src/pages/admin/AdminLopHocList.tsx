@@ -85,6 +85,114 @@ const AdminLopHocList: React.FC = () => {
     trangThai: 'ChuaBatDau'
   });
   const [calculatedEndDate, setCalculatedEndDate] = useState<string>('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [selectedDays, setSelectedDays] = useState<number[]>([]);
+  const [isEditDropdownOpen, setIsEditDropdownOpen] = useState(false);
+  const [editSelectedDays, setEditSelectedDays] = useState<number[]>([]);
+
+  // Utility functions for day selection
+  const stringToDayArray = (dayString: string): number[] => {
+    if (!dayString) return [];
+    return dayString.split(',')
+      .map(day => parseInt(day.trim()))
+      .filter(day => !isNaN(day) && day >= 2 && day <= 8);
+  };
+
+  const dayArrayToString = (days: number[]): string => {
+    return days.sort().join(',');
+  };
+
+  const getDayName = (dayNumber: number): string => {
+    const days: { [key: number]: string } = {
+      2: 'Thứ 2',
+      3: 'Thứ 3',
+      4: 'Thứ 4',
+      5: 'Thứ 5',
+      6: 'Thứ 6',
+      7: 'Thứ 7',
+      8: 'Chủ nhật'
+    };
+    return days[dayNumber] || '';
+  };
+
+  const getSelectedDaysText = (days: number[]): string => {
+    if (days.length === 0) return 'Chọn ngày học';
+    if (days.length === 7) return 'Tất cả ngày trong tuần';
+    return days.map(day => getDayName(day)).join(', ');
+  };
+
+  // Predefined study schedule options
+  const studyScheduleOptions = [
+    { value: '7:00-8:30', label: '7:00 - 8:30 (Sáng sớm)' },
+    { value: '9:00-10:30', label: '9:00 - 10:30 (Sáng)' },
+    { value: '9:30-11:00', label: '9:30 - 11:00 (Sáng)' },
+    { value: '13:00-14:30', label: '13:00 - 14:30 (Chiều sớm)' },
+    { value: '14:00-15:30', label: '14:00 - 15:30 (Chiều)' },
+    { value: '15:30-17:00', label: '15:30 - 17:00 (Chiều muộn)' },
+    { value: '18:00-19:30', label: '18:00 - 19:30 (Tối sớm)' },
+    { value: '18:30-20:00', label: '18:30 - 20:00 (Tối)' },
+    { value: '19:30-21:00', label: '19:30 - 21:00 (Tối muộn)' },
+    { value: '19:45-21:15', label: '19:45 - 21:15 (Tối - phổ biến)' }
+  ];
+
+  // Sync selectedDays with newLopHoc.ngayHocTrongTuan and vice versa
+  useEffect(() => {
+    const daysFromString = stringToDayArray(newLopHoc.ngayHocTrongTuan);
+    if (JSON.stringify(daysFromString.sort()) !== JSON.stringify(selectedDays.sort())) {
+      setSelectedDays(daysFromString);
+    }
+  }, [newLopHoc.ngayHocTrongTuan]);
+
+  useEffect(() => {
+    const stringFromDays = dayArrayToString(selectedDays);
+    if (stringFromDays !== newLopHoc.ngayHocTrongTuan) {
+      setNewLopHoc({...newLopHoc, ngayHocTrongTuan: stringFromDays});
+    }
+  }, [selectedDays]);
+
+  // Sync editSelectedDays with editFormData.ngayHocTrongTuan and vice versa
+  useEffect(() => {
+    const daysFromString = stringToDayArray(editFormData.ngayHocTrongTuan);
+    if (JSON.stringify(daysFromString.sort()) !== JSON.stringify(editSelectedDays.sort())) {
+      setEditSelectedDays(daysFromString);
+    }
+  }, [editFormData.ngayHocTrongTuan]);
+
+  useEffect(() => {
+    const stringFromDays = dayArrayToString(editSelectedDays);
+    if (stringFromDays !== editFormData.ngayHocTrongTuan) {
+      setEditFormData({...editFormData, ngayHocTrongTuan: stringFromDays});
+    }
+  }, [editSelectedDays]);
+
+  const handleDayToggle = (day: number) => {
+    setSelectedDays(prev => {
+      const isSelected = prev.includes(day);
+      if (isSelected) {
+        return prev.filter(d => d !== day);
+      } else {
+        return [...prev, day];
+      }
+    });
+  };
+
+  const handleCancelAddClass = () => {
+    setShowAddForm(false);
+    setNewLopHoc({
+      khoaHocID: 0,
+      giangVienID: 0,
+      diaDiemID: 0,
+      ngayBatDau: '',
+      ngayKetThuc: '',
+      caHoc: '',
+      ngayHocTrongTuan: '',
+      donGiaBuoiDay: 0,
+      thoiLuongGio: 1.5,
+      soLuongToiDa: 0,
+      trangThai: 'ChuaBatDau'
+    });
+    setSelectedDays([]);
+  };
 
   useEffect(() => {
     fetchData();
@@ -204,8 +312,25 @@ const AdminLopHocList: React.FC = () => {
 
       setLopHocs([...lopHocs, createdLopHoc]);
 
-      // Hiển thị thông báo thành công
-      alert('Lớp học đã được tạo thành công!');
+      // Hiển thị thông báo thành công với đầy đủ thông tin lớp học
+      const successMessage = `
+Lớp học đã được tạo thành công!
+
+📚 Thông tin lớp học:
+• Mã lớp: ${createdLopHoc.lopID}
+• Khóa học: ${getKhoaHocName(createdLopHoc.khoaHocID)}
+• Giảng viên: ${getGiangVienName(createdLopHoc.giangVienID)}
+• Ngày bắt đầu: ${formatDate(createdLopHoc.ngayBatDau)}
+• Ngày kết thúc: ${createdLopHoc.ngayKetThuc ? formatDate(createdLopHoc.ngayKetThuc) : 'Chưa xác định'}
+• Ngày học trong tuần: ${createdLopHoc.ngayHocTrongTuan || 'Chưa xác định'}
+• Ca học: ${createdLopHoc.caHoc || 'Chưa xác định'}
+• Đơn giá: ${createdLopHoc.donGiaBuoiDay ? createdLopHoc.donGiaBuoiDay.toLocaleString('vi-VN') + ' VNĐ' : 'Chưa xác định'}
+• Số lượng tối đa: ${createdLopHoc.soLuongToiDa || 'Không giới hạn'}
+• Địa điểm: ${getDiaDiemName(createdLopHoc.diaDiemID)}
+• Trạng thái: ${mapLopHocStatus(createdLopHoc.trangThai)}
+      `;
+
+      alert(successMessage);
       setNewLopHoc({
         khoaHocID: 0,
         giangVienID: 0,
@@ -228,22 +353,7 @@ const AdminLopHocList: React.FC = () => {
     }
   };
 
-  const handleCancelAddClass = () => {
-    setShowAddForm(false);
-    setNewLopHoc({
-      khoaHocID: 0,
-      giangVienID: 0,
-      diaDiemID: 0,
-      ngayBatDau: '',
-      ngayKetThuc: '',
-      caHoc: '',
-      ngayHocTrongTuan: '',
-      donGiaBuoiDay: 0,
-      thoiLuongGio: 1.5,
-      soLuongToiDa: 0,
-      trangThai: 'ChuaBatDau'
-    });
-  };
+
 
   const getKhoaHocName = (khoaHocID: number): string => {
     if (!khoaHocID || khoaHocID === 0) return 'Chưa xác định';
@@ -274,6 +384,10 @@ const AdminLopHocList: React.FC = () => {
   };
 
   const handleEditLopHoc = (lopHoc: LopHoc) => {
+    // Initialize editSelectedDays from the existing ngayHocTrongTuan
+    const initialSelectedDays = stringToDayArray(lopHoc.ngayHocTrongTuan || '');
+    setEditSelectedDays(initialSelectedDays);
+
     setEditingLopHoc(lopHoc);
     setEditFormData({
       khoaHocID: lopHoc.khoaHocID || 0,
@@ -289,6 +403,142 @@ const AdminLopHocList: React.FC = () => {
       trangThai: lopHoc.trangThai || 'ChuaBatDau'
     });
     setShowEditModal(true);
+  };
+
+  // Tạo component dropdown days tái sử dụng
+  const DaysDropdownComponent = ({
+    selectedDays,
+    onDaysChange,
+    isOpen,
+    onToggle
+  }: {
+    selectedDays: number[];
+    onDaysChange: (days: number[]) => void;
+    isOpen: boolean;
+    onToggle: () => void;
+  }) => {
+    const handleDayToggle = (day: number) => {
+      const isSelected = selectedDays.includes(day);
+      if (isSelected) {
+        onDaysChange(selectedDays.filter(d => d !== day));
+      } else {
+        onDaysChange([...selectedDays, day]);
+      }
+    };
+
+    return (
+      <div style={{ position: 'relative' }}>
+        <button
+          type="button"
+          onClick={onToggle}
+          style={{
+            width: '100%',
+            padding: '8px 12px',
+            border: '1px solid #ddd',
+            borderRadius: '4px',
+            backgroundColor: 'white',
+            textAlign: 'left',
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            minHeight: '38px'
+          }}
+        >
+          <span style={{ color: selectedDays.length === 0 ? '#999' : '#333' }}>
+            {getSelectedDaysText(selectedDays)}
+          </span>
+          <i className={`fas ${isOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}
+             style={{ color: '#666', fontSize: '12px' }}></i>
+        </button>
+
+        {isOpen && (
+          <>
+            <div
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'transparent',
+                zIndex: 999
+              }}
+              onClick={onToggle}
+            />
+            <div style={{
+              position: 'absolute',
+              top: '100%',
+              left: 0,
+              right: 0,
+              backgroundColor: 'white',
+              border: '1px solid #ddd',
+              borderTop: 'none',
+              borderRadius: '0 0 4px 4px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+              zIndex: 1000,
+              maxHeight: '200px',
+              overflowY: 'auto'
+            }}>
+              {[2, 3, 4, 5, 6, 7, 8].map(day => (
+                <div
+                  key={day}
+                  style={{
+                    padding: '8px 12px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    borderBottom: day < 8 ? '1px solid #f0f0f0' : 'none',
+                    backgroundColor: selectedDays.includes(day) ? '#f8f9ff' : 'white',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onClick={() => handleDayToggle(day)}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedDays.includes(day)}
+                    onChange={() => handleDayToggle(day)}
+                    style={{
+                      marginRight: '8px',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <span style={{
+                    fontSize: '14px',
+                    color: '#333',
+                    userSelect: 'none'
+                  }}>
+                    {getDayName(day)}
+                  </span>
+                </div>
+              ))}
+              <div style={{
+                padding: '8px 12px',
+                borderTop: '1px solid #eee',
+                backgroundColor: '#f9f9f9'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => onDaysChange([])}
+                  style={{
+                    width: '100%',
+                    padding: '6px 12px',
+                    backgroundColor: '#dc3545',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  Xóa tất cả
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    );
   };
 
   const handleViewDetails = (lopHoc: LopHoc) => {
@@ -1033,17 +1283,18 @@ const AdminLopHocList: React.FC = () => {
           <h3>Thêm lớp học mới</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px', marginTop: '15px' }}>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                Khóa học:
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057' }}>
+                Khóa học: <span style={{ color: '#dc3545' }}>*</span>
               </label>
               <select
                 value={newLopHoc.khoaHocID}
                 onChange={(e) => setNewLopHoc({...newLopHoc, khoaHocID: Number(e.target.value)})}
                 style={{
                   width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
+                  padding: '12px 16px',
+                  border: '2px solid #e9ecef',
+                  borderRadius: '8px',
+                  fontSize: '14px'
                 }}
               >
                 <option value={0}>Chọn khóa học</option>
@@ -1055,17 +1306,18 @@ const AdminLopHocList: React.FC = () => {
               </select>
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                Giảng viên:
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057' }}>
+                Giảng viên: <span style={{ color: '#dc3545' }}>*</span>
               </label>
               <select
                 value={newLopHoc.giangVienID}
                 onChange={(e) => setNewLopHoc({...newLopHoc, giangVienID: Number(e.target.value)})}
                 style={{
                   width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
+                  padding: '12px 16px',
+                  border: '2px solid #e9ecef',
+                  borderRadius: '8px',
+                  fontSize: '14px'
                 }}
               >
                 <option value={0}>Chọn giảng viên</option>
@@ -1077,8 +1329,8 @@ const AdminLopHocList: React.FC = () => {
               </select>
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                Ngày bắt đầu:
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057' }}>
+                Ngày bắt đầu: <span style={{ color: '#dc3545' }}>*</span>
               </label>
               <input
                 type="date"
@@ -1086,67 +1338,174 @@ const AdminLopHocList: React.FC = () => {
                 onChange={(e) => setNewLopHoc({...newLopHoc, ngayBatDau: e.target.value})}
                 style={{
                   width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
+                  padding: '12px 16px',
+                  border: '2px solid #e9ecef',
+                  borderRadius: '8px',
+                  fontSize: '14px'
                 }}
               />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057' }}>
                 Ngày kết thúc: <span style={{ fontWeight: 'normal', color: '#666' }}>(Tự động tính)</span>
               </label>
               <div style={{
-                padding: '8px 12px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                backgroundColor: '#f8f9fa',
-                color: '#495057',
-                fontWeight: '500'
+                width: '100%',
+                padding: '12px 16px',
+                border: '2px solid #e9ecef',
+                borderRadius: '8px',
+                backgroundColor: 'white',
+                color: 'black',
+                fontSize: '14px',
+                fontWeight: '400'
               }}>
-                {calculatedEndDate || 'Chọn ngày bắt đầu và khóa học để xem ngày kết thúc'}
+                {calculatedEndDate || 'Ngày kết thúc'}
               </div>
-              <small style={{ color: '#666', fontSize: '12px', marginTop: '4px', display: 'block' }}>
-                Ngày kết thúc được tính tự động dựa trên: Ngày bắt đầu + (Số buổi học ÷ Số buổi học trong tuần) tuần
-              </small>
+
             </div>
-            <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+            <div style={{ position: 'relative' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057' }}>
                 Ngày học trong tuần:
               </label>
-              <input
-                type="text"
-                value={newLopHoc.ngayHocTrongTuan}
-                onChange={(e) => setNewLopHoc({...newLopHoc, ngayHocTrongTuan: e.target.value})}
-                placeholder="VD: 2,4,6"
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
-                }}
-              />
+              <div style={{ position: 'relative' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 16px',
+                    border: '2px solid #e9ecef',
+                    borderRadius: '8px',
+                    backgroundColor: 'white',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    minHeight: '38px',
+                    fontSize: '14px'
+                  }}
+                >
+                  <span style={{ color: selectedDays.length === 0 ? '#495057' : '#495057' }}>
+                    {getSelectedDaysText(selectedDays)}
+                  </span>
+                  <i className={`fas ${isDropdownOpen ? 'fa-chevron-up' : 'fa-chevron-down'}`}
+                     style={{ color: '#495057', fontSize: '12px' }}></i>
+                </button>
+
+                {isDropdownOpen && (
+                  <>
+                    <div
+                      style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'transparent',
+                        zIndex: 999
+                      }}
+                      onClick={() => setIsDropdownOpen(false)}
+                    />
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      backgroundColor: 'white',
+                      border: '1px solid #ddd',
+                      borderTop: 'none',
+                      borderRadius: '0 0 4px 4px',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      zIndex: 1000,
+                      maxHeight: '200px',
+                      overflowY: 'auto'
+                    }}>
+                      {[2, 3, 4, 5, 6, 7, 8].map(day => (
+                        <div
+                          key={day}
+                          style={{
+                            padding: '8px 12px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            borderBottom: day < 8 ? '1px solid #f0f0f0' : 'none',
+                            backgroundColor: selectedDays.includes(day) ? '#f8f9ff' : 'white',
+                            transition: 'background-color 0.2s'
+                          }}
+                          onClick={() => handleDayToggle(day)}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedDays.includes(day)}
+                            onChange={() => handleDayToggle(day)}
+                            style={{
+                              marginRight: '8px',
+                              cursor: 'pointer'
+                            }}
+                          />
+                          <span style={{
+                            fontSize: '14px',
+                            color: '#333',
+                            userSelect: 'none'
+                          }}>
+                            {getDayName(day)}
+                          </span>
+                        </div>
+                      ))}
+                      <div style={{
+                        padding: '8px 12px',
+                        borderTop: '1px solid #eee',
+                        backgroundColor: '#f9f9f9'
+                      }}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDays([])}
+                          style={{
+                            width: '100%',
+                            padding: '6px 12px',
+                            backgroundColor: '#dc3545',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '12px'
+                          }}
+                        >
+                          Xóa tất cả
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057' }}>
                 Ca học:
               </label>
-              <input
-                type="text"
+              <select
                 value={newLopHoc.caHoc}
                 onChange={(e) => setNewLopHoc({...newLopHoc, caHoc: e.target.value})}
-                placeholder="VD: 19:45-21:15"
                 style={{
                   width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
+                  padding: '12px 16px',
+                  border: '2px solid #e9ecef',
+                  borderRadius: '8px',
+                  fontSize: '14px'
                 }}
-              />
+              >
+                <option value="">Chọn ca học</option>
+                {studyScheduleOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                Đơn giá buổi dạy (VNĐ):
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057' }}>
+                Đơn giá buổi dạy (VNĐ): <span style={{ color: '#dc3545' }}>*</span>
               </label>
               <input
                 type="number"
@@ -1156,14 +1515,15 @@ const AdminLopHocList: React.FC = () => {
                 min="0"
                 style={{
                   width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
+                  padding: '12px 16px',
+                  border: '2px solid #e9ecef',
+                  borderRadius: '8px',
+                  fontSize: '14px'
                 }}
               />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057' }}>
                 Thời lượng (giờ):
               </label>
               <input
@@ -1175,14 +1535,15 @@ const AdminLopHocList: React.FC = () => {
                 step="0.5"
                 style={{
                   width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
+                  padding: '12px 16px',
+                  border: '2px solid #e9ecef',
+                  borderRadius: '8px',
+                  fontSize: '14px'
                 }}
               />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057' }}>
                 Địa điểm:
               </label>
               <select
@@ -1198,9 +1559,10 @@ const AdminLopHocList: React.FC = () => {
                 }}
                 style={{
                   width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
+                  padding: '12px 16px',
+                  border: '2px solid #e9ecef',
+                  borderRadius: '8px',
+                  fontSize: '14px'
                 }}
               >
                 <option value={0}>Chọn địa điểm</option>
@@ -1212,7 +1574,7 @@ const AdminLopHocList: React.FC = () => {
               </select>
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057' }}>
                 Số lượng tối đa:
               </label>
               <input
@@ -1232,9 +1594,10 @@ const AdminLopHocList: React.FC = () => {
                 max={getDiaDiemCapacity(newLopHoc.diaDiemID)}
                 style={{
                   width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #ddd',
-                  borderRadius: '4px'
+                  padding: '12px 16px',
+                  border: '2px solid #e9ecef',
+                  borderRadius: '8px',
+                  fontSize: '14px'
                 }}
               />
               {newLopHoc.diaDiemID > 0 && (
@@ -1494,30 +1857,23 @@ const AdminLopHocList: React.FC = () => {
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057' }}>
                   Ngày học trong tuần:
                 </label>
-                <input
-                  type="text"
-                  value={editFormData.ngayHocTrongTuan}
-                  onChange={(e) => handleEditFormChange('ngayHocTrongTuan', e.target.value)}
-                  placeholder="VD: 2,4,6"
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    border: '2px solid #e9ecef',
-                    borderRadius: '8px',
-                    fontSize: '14px'
-                  }}
-                />
+                <div style={{ position: 'relative' }}>
+                  <DaysDropdownComponent
+                    selectedDays={editSelectedDays}
+                    onDaysChange={setEditSelectedDays}
+                    isOpen={isEditDropdownOpen}
+                    onToggle={() => setIsEditDropdownOpen(!isEditDropdownOpen)}
+                  />
+                </div>
               </div>
 
               <div>
                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057' }}>
                   Ca học:
                 </label>
-                <input
-                  type="text"
+                <select
                   value={editFormData.caHoc}
                   onChange={(e) => handleEditFormChange('caHoc', e.target.value)}
-                  placeholder="VD: 19:45-21:15"
                   style={{
                     width: '100%',
                     padding: '12px 16px',
@@ -1525,7 +1881,14 @@ const AdminLopHocList: React.FC = () => {
                     borderRadius: '8px',
                     fontSize: '14px'
                   }}
-                />
+                >
+                  <option value="">Chọn ca học</option>
+                  {studyScheduleOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>

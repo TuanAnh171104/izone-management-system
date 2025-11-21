@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { dangKyLopService, DangKyLop, hocVienService, HocVien, lopHocService, LopHoc } from '../services/api';
 import { mapLopHocStatus, mapTrangThaiDangKy, mapTrangThaiThanhToan } from '../utils/statusMapping';
 
@@ -30,6 +30,19 @@ const AdminClassDetailsModal: React.FC<AdminClassDetailsModalProps> = ({
   const [students, setStudents] = useState<StudentWithStats[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [achievementFilter, setAchievementFilter] = useState<'all' | 'pass' | 'fail'>('all');
+
+  // Lọc danh sách học viên theo tiêu chí đạt
+  const filteredStudents = useMemo(() => {
+    if (achievementFilter === 'all') {
+      return students;
+    } else if (achievementFilter === 'pass') {
+      return students.filter(student => student.diemTrungBinh >= 5.5);
+    } else if (achievementFilter === 'fail') {
+      return students.filter(student => student.diemTrungBinh < 5.5);
+    }
+    return students;
+  }, [students, achievementFilter]);
 
   useEffect(() => {
     if (isOpen && lopHoc) {
@@ -313,9 +326,36 @@ const AdminClassDetailsModal: React.FC<AdminClassDetailsModalProps> = ({
 
               {/* Danh sách học viên */}
               <div>
-                <h3 style={{ margin: '0 0 16px 0', color: '#374151', fontSize: '18px' }}>
-                  <i className="fas fa-users"></i> Danh sách học viên ({students.length} học viên)
-                </h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h3 style={{ margin: 0, color: '#374151', fontSize: '18px' }}>
+                    <i className="fas fa-users"></i> Danh sách học viên ({filteredStudents.length} học viên)
+                  </h3>
+
+                  {/* Bộ lọc theo tiêu chí đạt */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <label style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>
+                      <i className="fas fa-filter"></i> Lọc theo trạng thái:
+                    </label>
+                    <select
+                      value={achievementFilter}
+                      onChange={(e) => setAchievementFilter(e.target.value as 'all' | 'pass' | 'fail')}
+                      style={{
+                        padding: '6px 12px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        background: 'white',
+                        color: '#374151',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        minWidth: '140px'
+                      }}
+                    >
+                      <option value="all">Tất cả học viên</option>
+                      <option value="pass">Đã đạt yêu cầu</option>
+                      <option value="fail">Chưa đạt yêu cầu</option>
+                    </select>
+                  </div>
+                </div>
 
                 {students.length === 0 ? (
                   <div style={{
@@ -330,9 +370,24 @@ const AdminClassDetailsModal: React.FC<AdminClassDetailsModalProps> = ({
                     <h4 style={{ margin: '0 0 8px 0' }}>Chưa có học viên nào đăng ký</h4>
                     <p style={{ margin: 0 }}>Lớp học này chưa có học viên đăng ký.</p>
                   </div>
+                ) : filteredStudents.length === 0 ? (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '40px',
+                    color: '#6b7280',
+                    background: '#f9fafb',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px'
+                  }}>
+                    <i className="fas fa-filter" style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }}></i>
+                    <h4 style={{ margin: '0 0 8px 0' }}>Không tìm thấy học viên</h4>
+                    <p style={{ margin: 0 }}>
+                      Không có học viên nào {achievementFilter === 'pass' ? 'đạt yêu cầu' : 'chưa đạt yêu cầu'} trong lớp này.
+                    </p>
+                  </div>
                 ) : (
                   <div style={{ display: 'grid', gap: '12px' }}>
-                    {students.map((student, index) => (
+                    {filteredStudents.map((student, index) => (
                       <div key={student.dangKyID} style={{
                         background: 'white',
                         border: '1px solid #e5e7eb',

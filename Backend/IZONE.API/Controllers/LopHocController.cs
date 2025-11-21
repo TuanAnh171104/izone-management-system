@@ -1088,21 +1088,48 @@ namespace IZONE.API.Controllers
                     if (changes.NgayBatDauChanged || changes.NgayHocChanged || changes.CaHocChanged)
                     {
                         _logger.LogInformation("Phát hiện thay đổi về lịch học, bắt đầu tái tạo buổi học cho lớp {LopID}", existingLopHoc.LopID);
+
+                        // 🔥 FIX: RELOAD lại lopHoc từ database sau update để có dữ liệu mới nhất (CaHoc mới)
+                        // Vì object trong memory chưa được refresh dù đã save vào DB
+                        var latestLopHoc = await _lopHocRepository.GetByIdAsync(id);
+                        if (latestLopHoc == null) throw new Exception($"Không thể reload lớp học sau update: {id}");
+
+                        _logger.LogInformation("Đã reload lớp học với CaHoc mới: '{CaHoc}'", latestLopHoc.CaHoc);
+
                         try
                         {
-                            var recreatedBuoiHocList = await _lopHocService.RecreateBuoiHocTuDongAsync(existingLopHoc.LopID);
-                            _logger.LogInformation("Đã tái tạo {Count} buổi học cho lớp {LopID}", recreatedBuoiHocList.Count(), existingLopHoc.LopID);
+                            var recreatedBuoiHocList = await _lopHocService.RecreateBuoiHocTuDongAsync(latestLopHoc.LopID);
+                            _logger.LogInformation("Đã tái tạo {Count} buổi học cho lớp {LopID}", recreatedBuoiHocList.Count(), latestLopHoc.LopID);
                         }
                         catch (Exception recreateEx)
                         {
-                            _logger.LogError(recreateEx, "Lỗi khi tái tạo buổi học cho lớp {LopID}", existingLopHoc.LopID);
+                            _logger.LogError(recreateEx, "Lỗi khi tái tạo buổi học cho lớp {LopID}", latestLopHoc.LopID);
                             // Không throw exception vì cập nhật lớp học đã thành công
                             // Chỉ log lỗi để admin biết có vấn đề với việc tái tạo buổi học
                         }
                     }
+                    else if (changes.GiangVienChanged || changes.DiaDiemChanged)
+                    {
+                        _logger.LogInformation("Phát hiện thay đổi giảng viên và/hoặc địa điểm, bắt đầu cập nhật thông tin buổi học cho lớp {LopID}", existingLopHoc.LopID);
+
+                        try
+                        {
+                            await _lopHocService.UpdateBuoiHocThongTinAsync(
+                                existingLopHoc.LopID,
+                                changes.GiangVienChanged ? existingLopHoc.GiangVienID : (int?)null,
+                                changes.DiaDiemChanged ? existingLopHoc.DiaDiemID : null
+                            );
+                            _logger.LogInformation("Đã cập nhật thông tin giảng viên và/hoặc địa điểm cho buổi học tương lai của lớp {LopID}", existingLopHoc.LopID);
+                        }
+                        catch (Exception updateEx)
+                        {
+                            _logger.LogError(updateEx, "Lỗi khi cập nhật thông tin buổi học cho lớp {LopID}", existingLopHoc.LopID);
+                            // Không throw exception vì cập nhật lớp học đã thành công
+                        }
+                    }
                     else
                     {
-                        _logger.LogInformation("Không có thay đổi về lịch học, bỏ qua việc tái tạo buổi học cho lớp {LopID}", existingLopHoc.LopID);
+                        _logger.LogInformation("Không có thay đổi về lịch học hoặc thông tin giảng viên/địa điểm, bỏ qua việc cập nhật buổi học cho lớp {LopID}", existingLopHoc.LopID);
                     }
 
                     // Trả về response với dữ liệu đã cập nhật
