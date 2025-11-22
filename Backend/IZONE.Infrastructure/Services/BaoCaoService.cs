@@ -215,57 +215,114 @@ namespace IZONE.Infrastructure.Services
         }
 
         /// <summary>
-        /// Báo cáo doanh thu chi tiết
+        /// Báo cáo doanh thu chi tiết theo cấu trúc phân cấp - ẩn giá trị trùng lặp
         /// </summary>
         public async Task<BaoCaoResponse> BaoCaoDoanhThuChiTietAsync(DateTime? ngayBatDau, DateTime? ngayKetThuc, Dictionary<string, object>? filters)
         {
             var startDate = ngayBatDau ?? DateTime.Now.AddMonths(-1);
             var endDate = ngayKetThuc ?? DateTime.Now;
 
-            // Query doanh thu từ các bảng liên quan
-            var query = from tt in _context.ThanhToans
-                       join dk in _context.DangKyLops on tt.DangKyID equals dk.DangKyID
-                       join hv in _context.HocViens on dk.HocVienID equals hv.HocVienID
-                       join lh in _context.LopHocs on dk.LopID equals lh.LopID
-                       join kh in _context.KhoaHocs on lh.KhoaHocID equals kh.KhoaHocID
-                       join gv in _context.GiangViens on lh.GiangVienID equals gv.GiangVienID
-                       where tt.Status == "Success" && tt.NgayThanhToan >= startDate && tt.NgayThanhToan <= endDate
-                       select new BaoCaoDoanhThuDto
-                       {
-                           KhoaHoc = kh.TenKhoaHoc,
-                           LopHoc = $"Lớp {lh.LopID}",
-                           SoLuongDangKy = 1,
-                           HocPhi = kh.HocPhi,
-                           TaiLieu = kh.DonGiaTaiLieu,
-                           TongDoanhThu = tt.SoTien,
-                           NgayBatDau = lh.NgayBatDau,
-                           GiangVien = gv.HoTen
-                       };
+            var result = new List<Dictionary<string, object>>();
 
-            var data = await query.ToListAsync();
+            // 1. Lấy dữ liệu thanh toán chi tiết để xử lý
+            var paymentData = await (from tt in _context.ThanhToans
+                                   join dk in _context.DangKyLops on tt.DangKyID equals dk.DangKyID
+                                   join hv in _context.HocViens on dk.HocVienID equals hv.HocVienID
+                                   join lh in _context.LopHocs on dk.LopID equals lh.LopID
+                                   join kh in _context.KhoaHocs on lh.KhoaHocID equals kh.KhoaHocID
+                                   join gv in _context.GiangViens on lh.GiangVienID equals gv.GiangVienID
+                                   where tt.Status == "Success" && tt.NgayThanhToan >= startDate && tt.NgayThanhToan <= endDate
+                                   select new
+                                   {
+                                       KhoaHocID = kh.KhoaHocID,
+                                       KhoaHoc = kh.TenKhoaHoc,
+                                       LopHocID = lh.LopID,
+                                       LopHoc = $"Lớp {lh.LopID}",
+                                       GiangVien = gv.HoTen,
+                                       HocVienID = hv.HocVienID,
+                                       HocVien = hv.HoTen,
+                                       DoanhThu = tt.SoTien,
+                                       NgayThanhToan = tt.NgayThanhToan
+                                   }).ToListAsync();
+
+            // 4. Nhóm theo khóa học và tạo cấu trúc phân cấp với logic ẩn trùng lặp
+            var khoaHocGroups = paymentData.GroupBy(x => x.KhoaHocID);
+
+            foreach (var khoaHocGroup in khoaHocGroups.OrderBy(x => x.Key))
+            {
+                var khoaHoc = khoaHocGroup.First();
+                var doanhThuKhoaHoc = khoaHocGroup.Sum(x => x.DoanhThu);
+
+                // Tính tổng số lớp của khóa học này
+                var soLuongLopHocCuaKhoa = khoaHocGroup.Select(x => x.LopHocID).Distinct().Count();
+
+                // Tính tổng số học viên của khóa học này
+                var soLuongHocVienCuaKhoa = khoaHocGroup.Select(x => x.HocVienID).Distinct().Count();
+
+                // Thêm dòng khóa học (cấp cao - hiển thị ở dòng đầu tiên)
+                result.Add(new Dictionary<string, object>
+                {
+                    ["KhoaHoc"] = khoaHoc.KhoaHoc,      // ✅ Hiển thị tên khóa học (dòng đầu)
+                    ["LopHoc"] = $"{soLuongLopHocCuaKhoa} Lớp học", // ✅ Hiển thị tổng số lớp của khóa học
+                    ["HocVien"] = $"{soLuongHocVienCuaKhoa} Học viên", // ✅ Hiển thị tổng số học viên của khóa học
+                    ["DoanhThu"] = doanhThuKhoaHoc,   // ✅ Tổng doanh thu khóa học
+                    ["NgayThanhToan"] = ""            // ❌ Để trống
+                });
+
+                // 5. Nhóm theo lớp học trong mỗi khóa học và ẩn trùng lặp
+                var lopHocGroups = khoaHocGroup.GroupBy(x => x.LopHocID);
+
+                foreach (var lopHocGroup in lopHocGroups.OrderBy(x => x.Key))
+                {
+                    var lopHoc = lopHocGroup.First();
+                    var doanhThuLopHoc = lopHocGroup.Sum(x => x.DoanhThu);
+
+                    // Tính tổng số học viên của lớp học này
+                    var soLuongHocVienCuaLop = lopHocGroup.Select(x => x.HocVienID).Distinct().Count();
+
+                    // Thêm dòng lớp học (cấp trung bình)
+                    result.Add(new Dictionary<string, object>
+                    {
+                        ["KhoaHoc"] = "",                                        // ❌ Ẩn tên khóa học trùng lặp
+                        ["LopHoc"] = $"{lopHoc.LopHoc} ({lopHoc.GiangVien})", // ✅ Hiển thị lớp + GV (dòng đầu của lớp)
+                        ["HocVien"] = $"{soLuongHocVienCuaLop} Học viên",     // ✅ Hiển thị tổng số học viên lớp
+                        ["DoanhThu"] = doanhThuLopHoc,                        // ✅ Tổng doanh thu lớp
+                        ["NgayThanhToan"] = ""                                 // ❌ Để trống
+                    });
+
+                    // 6. Liệt kê từng học viên trong lớp và ẩn trùng lặp
+                    foreach (var hocVien in lopHocGroup.OrderBy(x => x.HocVienID))
+                    {
+                        result.Add(new Dictionary<string, object>
+                        {
+                            ["KhoaHoc"] = "",                     // ❌ Ẩn tên khóa học trùng lặp
+                            ["LopHoc"] = "",                     // ❌ Ẩn tên lớp trùng lặp (để hoàn toàn trống)
+                            ["HocVien"] = hocVien.HocVien,      // ✅ Hiển thị tên học viên cụ thể
+                            ["DoanhThu"] = hocVien.DoanhThu,    // ✅ Doanh thu thực tế
+                            ["NgayThanhToan"] = hocVien.NgayThanhToan.ToString("yyyy-MM-dd HH:mm") // ✅ Ngày thanh toán cụ thể
+                        });
+                    }
+                }
+            }
 
             var response = new BaoCaoResponse
             {
                 BaoCaoID = 0,
                 LoaiBaoCao = "BaoCaoDoanhThuChiTiet",
                 NgayTao = DateTime.Now,
-                Data = data.Select(d => new Dictionary<string, object>
-                {
-                    ["KhoaHoc"] = d.KhoaHoc,
-                    ["LopHoc"] = d.LopHoc,
-                    ["SoLuongDangKy"] = d.SoLuongDangKy,
-                    ["HocPhi"] = d.HocPhi,
-                    ["TaiLieu"] = d.TaiLieu,
-                    ["TongDoanhThu"] = d.TongDoanhThu,
-                    ["NgayBatDau"] = d.NgayBatDau,
-                    ["GiangVien"] = d.GiangVien
-                }).Cast<Dictionary<string, object>>().ToList(),
+                Data = result,
                 Summary = new Dictionary<string, object>
                 {
-                    ["TongDoanhThu"] = data.Sum(d => d.TongDoanhThu),
-                    ["TongHocPhi"] = data.Sum(d => d.HocPhi),
-                    ["TongTaiLieu"] = data.Sum(d => d.TaiLieu),
-                    ["SoLuongDangKy"] = data.Sum(d => d.SoLuongDangKy)
+                    // Tính từ dữ liệu gốc để tránh duplicate
+                    ["TongDoanhThu"] = await (from tt in _context.ThanhToans
+                                            join dk in _context.DangKyLops on tt.DangKyID equals dk.DangKyID
+                                            join lh in _context.LopHocs on dk.LopID equals lh.LopID
+                                            join kh in _context.KhoaHocs on lh.KhoaHocID equals kh.KhoaHocID
+                                            where tt.Status == "Success" && tt.NgayThanhToan >= startDate && tt.NgayThanhToan <= endDate
+                                            select tt.SoTien).SumAsync(),
+                    ["SoLuongGiaoDich"] = paymentData.Count,
+                    ["SoLuongKhoaHoc"] = khoaHocGroups.Count(),
+                    ["SoLuongLopHoc"] = paymentData.Select(x => x.LopHocID).Distinct().Count()
                 },
                 Parameters = new Dictionary<string, object>
                 {
@@ -981,7 +1038,9 @@ public class BaoCaoHieuSuatKhoaHocDto
             {
                 return request.LoaiBaoCao switch
                 {
-                    "BaoCaoTaiChinhTongHop" => await BaoCaoTaiChinhTongHopAsync(request.NgayBatDau, request.NgayKetThuc),
+                    // Thay BaoCaoTaiChinhTongHop bằng BaoCaoDoanhThuChiTiet phân cấp
+                    "BaoCaoTaiChinhTongHop" => await BaoCaoDoanhThuChiTietAsync(request.NgayBatDau, request.NgayKetThuc, request.Filters),
+                    "BaoCaoDoanhThuChiTiet" => await BaoCaoDoanhThuChiTietAsync(request.NgayBatDau, request.NgayKetThuc, request.Filters),
                     "BaoCaoChiPhiChiTiet" => await BaoCaoChiPhiChiTietAsync(request.NgayBatDau, request.NgayKetThuc, request.Filters),
                     "BaoCaoLoiNhuanRongTheoLop" => await BaoCaoLoiNhuanRongTheoLopAsync(request.NgayBatDau, request.NgayKetThuc, request.Filters),
                     "BaoCaoHieuSuatGiangVien" => await BaoCaoHieuSuatGiangVienAsync(request.NgayBatDau, request.NgayKetThuc, request.Filters),

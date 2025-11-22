@@ -77,9 +77,27 @@ namespace IZONE.Core.Models
     }
 
     /// <summary>
-    /// DTO cho báo cáo doanh thu chi tiết
+    /// DTO cho báo cáo doanh thu chi tiết theo cấu trúc phân cấp
+    /// CapDo: 0=Total, 1=Course, 2=Class, 3=Student
     /// </summary>
     public class BaoCaoDoanhThuDto
+    {
+        public int CapDo { get; set; } // 0=Tổng, 1=Khóa học, 2=Lớp học, 3=Học viên
+        public string NoiDungHienThi { get; set; } = string.Empty; // Text hiển thị với emoji và thụt đầu dòng
+        public decimal DoanhThu { get; set; }
+
+        // Thông tin bổ sung (tùy chọn dùng cho frontend)
+        public int? KhoaHocID { get; set; }
+        public int? LopHocID { get; set; }
+        public int? HocVienID { get; set; }
+        public DateTime? NgayThanhToan { get; set; }
+    }
+
+    /// <summary>
+    /// DTO cũ giữ lại để backward compatibility
+    /// </summary>
+    [Obsolete("Sử dụng BaoCaoDoanhThuDto mới thay thế")]
+    public class BaoCaoDoanhThuDto_Old
     {
         public string KhoaHoc { get; set; } = string.Empty;
         public string LopHoc { get; set; } = string.Empty;

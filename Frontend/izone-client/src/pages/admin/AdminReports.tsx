@@ -5,7 +5,7 @@ import '../../styles/Reports.css';
 
 // Định nghĩa các loại báo cáo
 const FINANCIAL_REPORTS = [
-  { value: 'BaoCaoTaiChinhTongHop', label: 'Báo cáo Tài chính Tổng hợp' },
+  { value: 'BaoCaoDoanhThuChiTiet', label: 'Báo cáo doanh thu chi tiết' },
   { value: 'BaoCaoChiPhiChiTiet', label: 'Báo cáo Chi phí Chi tiết' },
   { value: 'BaoCaoLoiNhuanRongTheoLop', label: 'Báo cáo Lợi nhuận Ròng theo Lớp học' }
 ];
@@ -21,23 +21,12 @@ const OPERATIONAL_REPORTS = [
 
 // Định nghĩa cấu trúc cột cho từng loại báo cáo
 const COLUMN_CONFIGS: { [key: string]: any[] } = {
-  BaoCaoTaiChinhTongHop: [
-    { key: 'KyBaoCao', label: 'Kỳ Báo cáo', type: 'text' },
-    { key: 'TongDoanhThu', label: 'Tổng Doanh thu', type: 'currency' },
-    { key: 'TongChiPhiTrucTiep', label: 'Chi phí Trực tiếp', type: 'currency' },
-    { key: 'TongChiPhiChung', label: 'Chi phí Chung', type: 'currency' },
-    { key: 'LoiNhuanRong', label: 'Lợi nhuận Ròng', type: 'currency' },
-    { key: 'TySuatLoiNhuan', label: 'Tỷ suất LN (%)', type: 'percentage' }
-  ],
   BaoCaoDoanhThuChiTiet: [
     { key: 'KhoaHoc', label: 'Khóa học', type: 'text' },
     { key: 'LopHoc', label: 'Lớp học', type: 'text' },
-    { key: 'SoLuongDangKy', label: 'Số lượng Đăng ký', type: 'number' },
-    { key: 'HocPhi', label: 'Học phí', type: 'currency' },
-    { key: 'TaiLieu', label: 'Tài liệu', type: 'currency' },
-    { key: 'TongDoanhThu', label: 'Tổng Doanh thu', type: 'currency' },
-    { key: 'NgayBatDau', label: 'Ngày bắt đầu', type: 'date' },
-    { key: 'GiangVien', label: 'Giảng viên', type: 'text' }
+    { key: 'HocVien', label: 'Học viên', type: 'text' },
+    { key: 'DoanhThu', label: 'Doanh thu', type: 'currency' },
+    { key: 'NgayThanhToan', label: 'Ngày thanh toán', type: 'date' }
   ],
   BaoCaoChiPhiChiTiet: [
     { key: 'LoaiChiPhi', label: 'Loại Chi phí', type: 'text' },
@@ -249,6 +238,48 @@ const AdminReports: React.FC = () => {
 
     // Tính tổng cộng cho các báo cáo đặc biệt
     const getTotalRow = () => {
+      if (selectedReportType === 'BaoCaoDoanhThuChiTiet') {
+        // Tính tổng số khóa học: đếm unique dựa trên các dòng có KhoaHoc
+        const uniqueCourses = new Set();
+        reportData.forEach(row => {
+          if (row.KhoaHoc && row.KhoaHoc.trim() !== '') {
+            uniqueCourses.add(row.KhoaHoc);
+          }
+        });
+        const totalCourses = uniqueCourses.size;
+        // Tính tổng số lớp: đếm các dòng có LopHoc nhưng không có KhoaHoc và không có HocVien (chỉ dòng lớp học)
+        const totalClasses = reportData.filter(row =>
+          row.LopHoc && row.LopHoc.trim() !== '' && // có LopHoc
+          (!row.KhoaHoc || row.KhoaHoc.trim() === '') && // không có KhoaHoc
+          !row.LopHoc.toString().includes(' Lớp') && // loại bỏ dòng tổng "X Lớp"
+          !row.LopHoc.toString().includes('Học viên') // loại bỏ dòng có "Học viên"
+        ).length;
+        // Tính tổng số học viên: chỉ đếm dòng học viên thực tế
+        const totalStudents = reportData.filter(row =>
+          row.HocVien &&
+          row.HocVien.trim() !== '' &&
+          !row.HocVien.toString().includes(' Học viên') && // loại bỏ dòng tổng "X Học viên"
+          !row.LopHoc // chỉ đếm dòng có LopHoc rỗng (dòng học viên thực)
+        ).length;
+        // Tính tổng doanh thu: chỉ từ các dòng chi tiết học viên để tránh trùng lặp
+        const totalRevenue = reportData.filter(row =>
+          row.HocVien &&
+          row.HocVien.trim() !== '' &&
+          !row.HocVien.toString().includes(' Học viên') && // loại bỏ dòng tổng "X Học viên"
+          !row.LopHoc // chỉ hợp dòng có LopHoc rỗng (dòng học viên thực)
+        ).reduce((sum, row) => sum + (row.DoanhThu || 0), 0);
+
+        return `
+          <tr style="font-weight: bold; background-color: #e0e0e0;">
+            <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">Tổng cộng</td>
+            <td style="border: 1px solid #000; padding: 8px; text-align: left; font-weight: bold;">${totalCourses} khóa học</td>
+            <td style="border: 1px solid #000; padding: 8px; text-align: left; font-weight: bold;">${totalClasses} lớp học</td>
+            <td style="border: 1px solid #000; padding: 8px; text-align: left; font-weight: bold;">${totalStudents} học viên</td>
+            <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">${totalRevenue.toLocaleString('vi-VN')} VND</td>
+            <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;"></td>
+          </tr>`;
+      }
+
       if (selectedReportType === 'BaoCaoHieuSuatKhoaHoc') {
         const totalRegistrations = reportData.reduce((sum, row) => sum + (row.SoLuongDangKy || 0), 0);
         const totalRevenue = reportData.reduce((sum, row) => sum + (row.TongDoanhThu || 0), 0);
@@ -744,33 +775,49 @@ const AdminReports: React.FC = () => {
 
               {/* Dòng tổng kết */}
               <div className="report-summary">
-                <strong>Tổng kết:</strong>
-                <span>Tổng số bản ghi: {reportData.length}</span>
+                {selectedReportType === 'BaoCaoDoanhThuChiTiet' && (
+                  <>
+                    <span>Tổng số khóa học: {
+                      (() => {
+                        const uniqueCourses = new Set();
+                        reportData.forEach(row => {
+                          if (row.KhoaHoc && row.KhoaHoc.trim() !== '') {
+                            uniqueCourses.add(row.KhoaHoc);
+                          }
+                        });
+                        return uniqueCourses.size;
+                      })()
+                    }</span>
+                    <span>Tổng số lớp học: {reportData.filter(row =>
+                      row.LopHoc && row.LopHoc.trim() !== '' && // có LopHoc
+                      (!row.KhoaHoc || row.KhoaHoc.trim() === '') && // không phải dòng khóa học
+                      !row.LopHoc.toString().includes(' Lớp') && // loại bỏ dòng tổng "X Lớp"
+                      !row.LopHoc.toString().includes('Học viên') // loại bỏ dòng có "Học viên"
+                    ).length}</span>
+                    <span>Tổng số học viên: {reportData.filter(row =>
+                      row.HocVien &&
+                      row.HocVien.trim() !== '' &&
+                      !row.HocVien.toString().includes(' Học viên') && // loại bỏ dòng có tổng số "X Học viên"
+                      !row.LopHoc // chỉ đếm dòng có LopHoc rỗng (dòng học viên thực)
+                    ).length}</span>
+                    <span>Tổng doanh thu: {formatCellValue(
+                      // Chỉ cộng từ dòng học viên thực tế (LopHoc rỗng, HocVien có tên cụ thể)
+                      reportData.filter(row =>
+                        row.HocVien &&
+                        row.HocVien.trim() !== '' &&
+                        !row.HocVien.toString().includes(' Học viên') && // loại bỏ dòng tổng "X Học viên"
+                        !row.LopHoc // chỉ đếm dòng có LopHoc rỗng (dòng học viên thực)
+                      )
+                      .reduce((sum, row) => sum + (row.DoanhThu || 0), 0),
+                      'currency'
+                    )}</span>
+                  </>
+                )}
                 {selectedReportType === 'BaoCaoChiPhiChiTiet' && (
                   <span>Tổng chi phí: {formatCellValue(
                     reportData.reduce((sum, row) => sum + (row.SoTien || 0), 0),
                     'currency'
                   )}</span>
-                )}
-                {selectedReportType === 'BaoCaoTaiChinhTongHop' && (
-                  <>
-                    <span>Tổng doanh thu: {formatCellValue(
-                      reportData.reduce((sum, row) => sum + (row.TongDoanhThu || 0), 0),
-                      'currency'
-                    )}</span>
-                    <span>Tổng chi phí trực tiếp: {formatCellValue(
-                      reportData.reduce((sum, row) => sum + (row.TongChiPhiTrucTiep || 0), 0),
-                      'currency'
-                    )}</span>
-                    <span>Tổng chi phí chung: {formatCellValue(
-                      reportData.reduce((sum, row) => sum + (row.TongChiPhiChung || 0), 0),
-                      'currency'
-                    )}</span>
-                    <span>Tổng lợi nhuận ròng: {formatCellValue(
-                      reportData.reduce((sum, row) => sum + (row.LoiNhuanRong || 0), 0),
-                      'currency'
-                    )}</span>
-                  </>
                 )}
                 {selectedReportType === 'BaoCaoLoiNhuanRongTheoLop' && (
                   <>
