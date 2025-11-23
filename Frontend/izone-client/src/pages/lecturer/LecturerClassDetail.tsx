@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { lopHocService, LopHoc, dangKyLopService, DangKyLop, buoiHocService, BuoiHoc, diemDanhService, DiemDanh, hocVienService, diaDiemService, DiaDiem, thongBaoService } from '../../services/api';
+import { lopHocService, LopHoc, dangKyLopService, DangKyLop, buoiHocService, BuoiHoc, diemDanhService, DiemDanh, hocVienService, diaDiemService, DiaDiem, thongBaoService, giangVienService, GiangVien, GiangVienWithEmailDto } from '../../services/api';
 import { mapLopHocStatus, mapBuoiHocStatus, mapTrangThaiDangKy } from '../../utils/statusMapping';
 import GradesTab from './GradesTab';
 import '../../styles/Lecturer.css';
@@ -618,6 +618,7 @@ interface ScheduleChangeTabProps {
 const ScheduleChangeTab: React.FC<ScheduleChangeTabProps> = ({ lopId, classInfo, onRefresh, loading, error }) => {
   const [buoiHocs, setBuoiHocs] = useState<BuoiHoc[]>([]);
   const [locations, setLocations] = useState<DiaDiem[]>([]);
+  const [lecturers, setLecturers] = useState<GiangVienWithEmailDto[]>([]);
   const [selectedBuoiHoc, setSelectedBuoiHoc] = useState<BuoiHoc | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [editForm, setEditForm] = useState<{
@@ -625,6 +626,7 @@ const ScheduleChangeTab: React.FC<ScheduleChangeTabProps> = ({ lopId, classInfo,
     thoiGianBatDau: string;
     thoiGianKetThuc: string;
     diaDiemID: number | null;
+    giangVienThayTheID: number | null;
     lyDo: string;
   } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -638,6 +640,7 @@ const ScheduleChangeTab: React.FC<ScheduleChangeTabProps> = ({ lopId, classInfo,
   useEffect(() => {
     loadBuoiHocs();
     loadLocations();
+    loadLecturers();
   }, [lopId]);
 
   const loadBuoiHocs = async () => {
@@ -678,6 +681,25 @@ const ScheduleChangeTab: React.FC<ScheduleChangeTabProps> = ({ lopId, classInfo,
     }
   };
 
+  const loadLecturers = async () => {
+    try {
+      console.log('🔄 Đang lấy danh sách giảng viên...');
+      const response = await giangVienService.getAll();
+      console.log('✅ Danh sách giảng viên:', response);
+
+      if (Array.isArray(response)) {
+        setLecturers(response);
+        console.log('✅ Đã tải được', response.length, 'giảng viên');
+      } else {
+        console.warn('⚠️ API giảng viên trả về không phải array:', typeof response);
+        setLecturers([]);
+      }
+    } catch (error: any) {
+      console.error('❌ Lỗi khi lấy danh sách giảng viên:', error);
+      setLecturers([]);
+    }
+  };
+
   const handleEditBuoiHoc = (buoiHoc: BuoiHoc) => {
     setSelectedBuoiHoc(buoiHoc);
     setEditForm({
@@ -685,6 +707,7 @@ const ScheduleChangeTab: React.FC<ScheduleChangeTabProps> = ({ lopId, classInfo,
       thoiGianBatDau: buoiHoc.thoiGianBatDau ? buoiHoc.thoiGianBatDau.toString().substring(0, 5) : '08:00',
       thoiGianKetThuc: buoiHoc.thoiGianKetThuc ? buoiHoc.thoiGianKetThuc.toString().substring(0, 5) : '10:00',
       diaDiemID: buoiHoc.diaDiemID ?? null,
+      giangVienThayTheID: buoiHoc.giangVienThayTheID ?? null,
       lyDo: ''
     });
     setConflictCheck(null);
@@ -793,7 +816,7 @@ const ScheduleChangeTab: React.FC<ScheduleChangeTabProps> = ({ lopId, classInfo,
         ngayHoc: new Date(editForm.ngayHoc).toISOString(),
         thoiGianBatDau: editForm.thoiGianBatDau || null,
         thoiGianKetThuc: editForm.thoiGianKetThuc || null,
-        giangVienThayTheID: selectedBuoiHoc.giangVienThayTheID,
+        giangVienThayTheID: editForm.giangVienThayTheID,
         diaDiemID: editForm.diaDiemID,
         trangThai: selectedBuoiHoc.trangThai,
         // Thêm thông tin LopHoc đầy đủ để tránh lỗi validation
@@ -893,6 +916,8 @@ const ScheduleChangeTab: React.FC<ScheduleChangeTabProps> = ({ lopId, classInfo,
       const newStartTime = editForm!.thoiGianBatDau;
       const newEndTime = editForm!.thoiGianKetThuc;
       const newLocation = locations.find(loc => loc.diaDiemID === editForm!.diaDiemID);
+      const newLecturer = lecturers.find(lect => lect.giangVienID === editForm!.giangVienThayTheID);
+      const currentLecturer = lecturers.find(lect => lect.giangVienID === classInfo.giangVienID);
 
       const notificationContent = `📅 THÔNG BÁO ĐỔI LỊCH HỌC
 
@@ -904,16 +929,18 @@ const ScheduleChangeTab: React.FC<ScheduleChangeTabProps> = ({ lopId, classInfo,
 📅 Buổi học cũ: ${new Date(oldBuoiHoc!.ngayHoc).toLocaleDateString('vi-VN')}
 🕐 Thời gian cũ: ${oldBuoiHoc!.thoiGianBatDau || 'Chưa xác định'} - ${oldBuoiHoc!.thoiGianKetThuc || 'Chưa xác định'}
 📍 Địa điểm cũ: ${getLocationName(oldBuoiHoc!.diaDiemID)}
+👨‍🏫 Giảng viên cũ: ${currentLecturer ? `${currentLecturer.hoTen} (${currentLecturer.chuyenMon || 'Chuyên môn'})` : 'Giảng viên chính khóa'}
 
 📅 Buổi học mới: ${newDate}
 🕐 Thời gian mới: ${newStartTime} - ${newEndTime}
 📍 Địa điểm mới: ${newLocation ? `${newLocation.tenCoSo} - ${newLocation.diaChi}` : 'Chưa xác định'}
+${newLecturer ? `👨‍🏫 Giảng viên mới: ${newLecturer.hoTen} (${newLecturer.chuyenMon || 'Chuyên môn'})` : ''}
 
 📝 Lý do thay đổi: ${editForm!.lyDo}
 
 ⚠️ Lưu ý quan trọng:
 • Vui lòng cập nhật lịch học cá nhân
-• Đến đúng giờ và địa điểm mới
+• Đến đúng giờ và địa điểm mới${newLecturer ? `\n• Lưu ý: Buổi học này được đảm nhận bởi giảng viên mới` : ''}
 • Liên hệ giáo viên nếu có thắc mắc
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1209,6 +1236,37 @@ Cảm ơn sự hợp tác của quý học viên!`;
                         </option>
                       ))}
                     </select>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+                  {/* Giảng viên thay thế */}
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151' }}>
+                      <i className="fas fa-user-tie"></i> Giảng viên thay thế: (tùy chọn)
+                    </label>
+                    <select
+                      value={editForm.giangVienThayTheID || ''}
+                      onChange={(e) => handleFormChange('giangVienThayTheID', e.target.value ? parseInt(e.target.value) : null)}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        background: 'white'
+                      }}
+                    >
+                      <option value="">-- Không thay đổi giảng viên --</option>
+                      {lecturers.map((lecturer) => (
+                        <option key={lecturer.giangVienID} value={lecturer.giangVienID}>
+                          {lecturer.hoTen} {lecturer.chuyenMon ? `(${lecturer.chuyenMon})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <div style={{ marginTop: '4px', fontSize: '12px', color: '#6b7280' }}>
+                      Để trống để giữ giảng viên chính khóa
+                    </div>
                   </div>
                 </div>
 

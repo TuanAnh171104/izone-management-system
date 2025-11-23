@@ -114,6 +114,9 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
       case 'BinhThuong': return 'Đăng ký bình thường';
       case 'HocTiep': return 'Đi học tiếp sau bảo lưu';
       case 'HocLai': return 'Học lại';
+      case 'DaBaoLuu': return 'Bảo lưu';
+      case 'DaDoiLop': return 'Đã đổi lớp';
+      case 'MienPhi': return 'Đăng ký miễn phí';
       default: return 'Không xác định';
     }
   };

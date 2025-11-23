@@ -4,6 +4,11 @@ import { lopHocService, LopHoc, khoaHocService, KhoaHoc, diaDiemService, DiaDiem
 import { mapLopHocStatus } from '../../utils/statusMapping';
 import '../../styles/Management.css';
 
+interface ExtendedDangKyLop extends DangKyLop {
+  loaiDangKy?: string;
+  thongTinLienQuan?: any;
+}
+
 interface PaginationInfo {
   currentPage: number;
   totalPages: number;
@@ -16,7 +21,8 @@ const StudentMyClasses: React.FC = () => {
   const [classes, setClasses] = useState<LopHoc[]>([]);
   const [khoaHocs, setKhoaHocs] = useState<KhoaHoc[]>([]);
   const [diaDiems, setDiaDiems] = useState<DiaDiem[]>([]);
-  const [dangKyLops, setDangKyLops] = useState<DangKyLop[]>([]);
+  const [dangKyLops, setDangKyLops] = useState<ExtendedDangKyLop[]>([]);
+  const [extendedDangKyLops, setExtendedDangKyLops] = useState<ExtendedDangKyLop[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
@@ -195,8 +201,21 @@ const StudentMyClasses: React.FC = () => {
 
   const fetchRegistrationData = async (hocVienID: number, classes: LopHoc[]) => {
     try {
-      // Get all registrations for the student
-      const registrations = await dangKyLopService.getByHocVienId(hocVienID);
+      // Get all registrations for the student with detailed info
+      const extendedRegistrations = await dangKyLopService.getByHocVienIdWithDetails(hocVienID);
+      setExtendedDangKyLops(extendedRegistrations);
+
+      // Cập nhật dangKyLops từ extended data
+      const registrations = extendedRegistrations.map(ext => ({
+        dangKyID: ext.dangKyID,
+        hocVienID: ext.hocVienID,
+        lopID: ext.lopID,
+        ngayDangKy: ext.ngayDangKy,
+        trangThaiDangKy: ext.trangThaiDangKy,
+        trangThaiThanhToan: ext.trangThaiThanhToan,
+        ngayHuy: ext.ngayHuy,
+        lyDoHuy: ext.lyDoHuy
+      }));
       setDangKyLops(registrations);
 
       // Get reservation data for each registration
@@ -215,7 +234,15 @@ const StudentMyClasses: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('Lỗi khi tải dữ liệu đăng ký:', error);
+      console.error('Lỗi khi tải dữ liệu đăng ký chi tiết:', error);
+      // Fallback to basic registrations if extended API fails
+      try {
+        const registrations = await dangKyLopService.getByHocVienId(hocVienID);
+        setDangKyLops(registrations);
+        setExtendedDangKyLops([]);
+      } catch (error2) {
+        console.error('Lỗi khi tải dữ liệu đăng ký cơ bản:', error2);
+      }
     }
   };
 
@@ -776,7 +803,11 @@ const StudentMyClasses: React.FC = () => {
                   {/* Single button based on class status */}
                   {(() => {
                     const registration = getRegistrationForClass(classItem.lopID);
+                    const extendedRegistration = extendedDangKyLops.find(ext => ext.lopID === classItem.lopID);
                     const { reservation, canContinue } = getReservationStatus(classItem.lopID);
+
+                    // Hiển thị thông tin registration chi tiết nếu có
+                    const shouldShowRegistrationInfo = extendedRegistration && (extendedRegistration.loaiDangKy || extendedRegistration.thongTinLienQuan);
 
                     // If class is reserved (DaBaoLuu), show continue learning button
                     if (registration?.trangThaiDangKy === 'DaBaoLuu' && reservation) {
@@ -786,6 +817,95 @@ const StudentMyClasses: React.FC = () => {
                         : canContinue
                         ? 'Đi học tiếp'
                         : 'Không khả dụng';
+
+                      let detailedButtonText = buttonText;
+                      if (extendedRegistration?.loaiDangKy === 'BaoLuu') {
+                        detailedButtonText = 'Đi học tiếp';
+                      } else if (extendedRegistration?.thongTinLienQuan?.tutLopTrongThoiGianBaoLuu) {
+                        detailedButtonText = 'Tiếp tục học';
+                      }
+
+                      // Hiển thị thông tin lớp đã học tiếp (HocTiep)
+                      if (extendedRegistration?.loaiDangKy === 'HocTiep') {
+                        const thongTinLienQuan = extendedRegistration.thongTinLienQuan;
+                        const newClassInfo = thongTinLienQuan?.lopHoc || thongTinLienQuan?.lopHocLienQuan;
+                        if (newClassInfo) {
+                          const classDisplayName = `${newClassInfo.lopID || newClassInfo.lop}`;
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span
+                                style={{
+                                  padding: '6px 12px',
+                                  borderRadius: '20px',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  backgroundColor: '#dcfce7',
+                                  color: '#166534',
+                                  border: '1px solid #bbf7d0'
+                                }}
+                              >
+                                <i className="fas fa-arrow-circle-right"></i> Học tiếp
+                              </span>
+                              <span style={{ fontSize: '11px', color: '#6b7280' }}>
+                                Tại lớp ID: {classDisplayName}
+                              </span>
+                            </div>
+                          );
+                        }
+                      }
+
+                      // Hiển thị thông tin lớp tiếp tục từ bảo lưu
+                      if (reservation.trangThai === 'DaSuDung') {
+                        const thongTinLienQuan = extendedRegistration?.thongTinLienQuan;
+                        if (thongTinLienQuan) {
+                          const newClassInfo = thongTinLienQuan.lopMoiTruyenTiep ||
+                                              thongTinLienQuan.lopHoc ||
+                                              thongTinLienQuan.lopHocLienQuan;
+
+                          if (newClassInfo) {
+                            const classDisplayName = typeof newClassInfo === 'object'
+                              ? `${newClassInfo.lopID || newClassInfo.lop || 'ID'}`
+                              : newClassInfo;
+
+                            return (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span
+                                  style={{
+                                    padding: '6px 12px',
+                                    borderRadius: '20px',
+                                    fontSize: '12px',
+                                    fontWeight: '600',
+                                    backgroundColor: '#dcfce7',
+                                    color: '#166534',
+                                    border: '1px solid #bbf7d0'
+                                  }}
+                                >
+                                  <i className="fas fa-check-circle"></i> Đã học tiếp
+                                </span>
+                                <span style={{ fontSize: '11px', color: '#6b7280' }}>
+                                  Tại lớp ID: {classDisplayName}
+                                </span>
+                              </div>
+                            );
+                          }
+                        }
+
+                        return (
+                          <span
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: '20px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              backgroundColor: '#dcfce7',
+                              color: '#166534',
+                              border: '1px solid #bbf7d0'
+                            }}
+                          >
+                            <i className="fas fa-check-circle"></i> Đã học tiếp
+                          </span>
+                        );
+                      }
 
                       const tooltipText = !canContinue
                         ? reservation.trangThai === 'DaSuDung'
@@ -805,13 +925,22 @@ const StudentMyClasses: React.FC = () => {
                           style={getContinueButtonStyle(isDisabled, reservation.trangThai)}
                           title={tooltipText}
                         >
-                          <i className="fas fa-play-circle"></i> {buttonText}
+                          <i className="fas fa-play-circle"></i> {detailedButtonText}
                         </button>
                       );
                     }
 
                     // Check if class is cancelled (DaHuy) - show cancelled status
                     if (registration?.trangThaiDangKy === 'DaHuy') {
+                      let cancelReason = registration.lyDoHuy || 'Lớp đã được hủy';
+
+                      // Kiểm tra nếu là việc hủy do đổi lớp bởi lyDoHuy chứa thông tin đổi lớp
+                      const changeInfo = extendedRegistration?.lyDoHuy?.match(/đổi sang lớp (\d+)[^.]*/);
+                      if (changeInfo) {
+                        const newClassId = parseInt(changeInfo[1]);
+                        cancelReason = `Đã đổi sang lớp ${newClassId}`;
+                      }
+
                       return (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span
@@ -820,15 +949,16 @@ const StudentMyClasses: React.FC = () => {
                               borderRadius: '20px',
                               fontSize: '12px',
                               fontWeight: '600',
-                              backgroundColor: '#fee2e2',
-                              color: '#dc2626',
-                              border: '1px solid #fecaca'
+                              backgroundColor: extendedRegistration?.lyDoHuy?.includes('đổi sang') ? '#fef3c7' : '#fee2e2',
+                              color: extendedRegistration?.lyDoHuy?.includes('đổi sang') ? '#92400e' : '#dc2626',
+                              border: `1px solid ${extendedRegistration?.lyDoHuy?.includes('đổi sang') ? '#fde68a' : '#fecaca'}`
                             }}
                           >
-                            <i className="fas fa-ban"></i> Đã hủy
+                            <i className={`fas ${extendedRegistration?.lyDoHuy?.includes('đổi sang') ? 'fa-exchange-alt' : 'fa-ban'}`}></i>
+                            {extendedRegistration?.lyDoHuy?.includes('đổi sang') ? 'Đã đổi lớp' : 'Đã hủy'}
                           </span>
                           <span style={{ fontSize: '11px', color: '#6b7280' }}>
-                            {registration.lyDoHuy || 'Lớp đã được hủy'}
+                            {cancelReason}
                           </span>
                         </div>
                       );
@@ -839,28 +969,31 @@ const StudentMyClasses: React.FC = () => {
                       const canChange = changeEligibilityInfo?.dangKyID === registration.dangKyID ? changeEligibilityInfo?.canChange : true;
                       const isFreeRegistration = changeEligibilityInfo?.dangKyID === registration.dangKyID ? changeEligibilityInfo?.isFreeRegistration : false;
 
+                      // Không cho đổi lớp nữa nữa nếu đã là đăng ký miễn phí từ việc học lại/bảo lưu
+                      const isOldFreeRegistration = extendedRegistration?.loaiDangKy === 'HocLai' || extendedRegistration?.loaiDangKy === 'BaoLuu';
+
                       return (
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
                             className="btn-change"
                             onClick={() => handleChangeClass(registration.dangKyID)}
-                            disabled={!canChange || isFreeRegistration}
+                            disabled={!canChange || isFreeRegistration || isOldFreeRegistration}
                             style={{
                               padding: '8px 16px',
                               border: 'none',
                               borderRadius: '6px',
                               fontSize: '12px',
                               fontWeight: '600',
-                              cursor: (canChange && !isFreeRegistration) ? 'pointer' : 'not-allowed',
-                              opacity: (canChange && !isFreeRegistration) ? 1 : 0.6,
-                              background: (canChange && !isFreeRegistration)
-                                ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
-                                : '#6b7280',
+                              cursor: (!canChange || isFreeRegistration || isOldFreeRegistration) ? 'not-allowed' : 'pointer',
+                              opacity: (!canChange || isFreeRegistration || isOldFreeRegistration) ? 0.6 : 1,
+                              background: (!canChange || isFreeRegistration || isOldFreeRegistration)
+                                ? '#6b7280'
+                                : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                               color: 'white'
                             }}
                             title={!canChange
                               ? (changeEligibilityInfo?.reason || 'Không đủ điều kiện đổi lớp')
-                              : isFreeRegistration
+                              : isFreeRegistration || isOldFreeRegistration
                                 ? 'Không thể đổi lớp từ đăng ký miễn phí (học lại/bảo lưu)'
                                 : 'Đổi sang lớp khác'}
                           >
@@ -889,6 +1022,34 @@ const StudentMyClasses: React.FC = () => {
                     // Check if class is completed (DaKetThuc) - show retake button
                     if (classItem.trangThai === 'DaKetThuc' && registration) {
                       const canRetake = eligibilityInfo?.dangKyID === registration.dangKyID ? eligibilityInfo?.canRetake : true;
+
+                      // Kiểm tra xem đã học lại chưa dựa trên thongTinLienQuan
+                      const hasRetaken = extendedRegistration?.thongTinLienQuan?.daHocLai;
+                      const newClassInfo = extendedRegistration?.thongTinLienQuan?.lopHocLai;
+
+                      if (hasRetaken && newClassInfo) {
+                        const retakeClassInfo = `${newClassInfo.tenLop || 'Lớp học lại'} (${newClassInfo.lopID})`;
+                        return (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '20px',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                backgroundColor: '#e0f2fe',
+                                color: '#0277bd',
+                                border: '1px solid #b3e5fc'
+                              }}
+                            >
+                              <i className="fas fa-redo"></i> Đã học lại
+                            </span>
+                            <span style={{ fontSize: '11px', color: '#6b7280' }}>
+                              Ở: {retakeClassInfo}
+                            </span>
+                          </div>
+                        );
+                      }
 
                       return (
                         <div style={{ display: 'flex', gap: '8px' }}>

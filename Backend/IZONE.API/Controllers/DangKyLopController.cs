@@ -64,13 +64,106 @@ namespace IZONE.API.Controllers
                 .ToListAsync();
 
             var result = dangKyLops.Select(dk => {
-                // Phân loại đăng ký
+                // Phân loại đăng ký - Cải tiến logic để tránh trường hợp "Không xác định"
                 string loaiDangKy = "BinhThuong"; // Mặc định là đăng ký bình thường
+                object thongTinLienQuan = null; // Thông tin về lớp liên quan (đổi, học lại, đi học tiếp)
 
                 // Kiểm tra có phải đăng ký miễn phí không (đi học tiếp hoặc học lại)
                 bool isFreeRegistration = !_context.ThanhToans.Any(t => t.DangKyID == dk.DangKyID);
 
-                if (isFreeRegistration)
+                // 1. Kiểm tra đăng ký đã hủy do đổi lớp (ưu tiên cao nhất)
+                if (dk.TrangThaiDangKy == "DaHuy" && !string.IsNullOrEmpty(dk.LyDoHuy) && dk.LyDoHuy.Contains("Đổi sang lớp"))
+                {
+                    loaiDangKy = "DaDoiLop";
+                    // Trích xuất thông tin lớp mới từ LyDoHuy
+                    var match = System.Text.RegularExpressions.Regex.Match(dk.LyDoHuy, @"Đổi sang lớp.*ID[:\s]+(\d+)");
+                    if (match.Success)
+                    {
+                        int newLopId = int.Parse(match.Groups[1].Value);
+                        string tenKhoaHocMoi = System.Text.RegularExpressions.Regex.Replace(dk.LyDoHuy, @"Đổi sang lớp.*ID[:\s]+\d+\s*-\s*", "").Trim();
+
+                        // Tìm thông tin lớp mới
+                        var lopMoi = _context.LopHocs
+                            .Include(l => l.KhoaHoc)
+                            .Include(l => l.GiangVien)
+                            .Include(l => l.DiaDiem)
+                            .FirstOrDefault(l => l.LopID == newLopId);
+
+                        thongTinLienQuan = new
+                        {
+                            lopHocLienQuan = new
+                            {
+                                lopID = newLopId,
+                                tenKhoaHoc = tenKhoaHocMoi,
+                                khoaHoc = lopMoi?.KhoaHoc != null ? new
+                                {
+                                    khoaHocID = lopMoi.KhoaHoc.KhoaHocID,
+                                    tenKhoaHoc = lopMoi.KhoaHoc.TenKhoaHoc
+                                } : null,
+                                giangVien = lopMoi?.GiangVien != null ? new
+                                {
+                                    giangVienID = lopMoi.GiangVien.GiangVienID,
+                                    hoTen = lopMoi.GiangVien.HoTen
+                                } : null,
+                                diaDiem = lopMoi?.DiaDiem != null ? new
+                                {
+                                    diaDiemID = lopMoi.DiaDiem.DiaDiemID,
+                                    tenCoSo = lopMoi.DiaDiem.TenCoSo
+                                } : null,
+                                ngayBatDau = lopMoi?.NgayBatDau.ToString("yyyy-MM-dd")
+                            }
+                        };
+                    }
+                }
+                // 2. Kiểm tra đăng ký đang bảo lưu
+                else if (dk.TrangThaiDangKy == "DaBaoLuu")
+                {
+                    loaiDangKy = "DaBaoLuu";
+                    // Tìm đăng ký đang học tiếp từ bảo lưu này
+                    var dangKyDangHocTiep = _context.DangKyLops
+                        .Include(dkl => dkl.LopHoc)
+                        .ThenInclude(l => l.KhoaHoc)
+                        .Include(dkl => dkl.LopHoc)
+                        .ThenInclude(l => l.GiangVien)
+                        .Include(dkl => dkl.LopHoc)
+                        .ThenInclude(l => l.DiaDiem)
+                        .FirstOrDefault(dkl => dkl.HocVienID == dk.HocVienID
+                                             && dkl.LopHoc.KhoaHocID == dk.LopHoc.KhoaHocID
+                                             && dkl.TrangThaiDangKy == "DangHoc"
+                                             && !_context.ThanhToans.Any(t => t.DangKyID == dkl.DangKyID)
+                                             && dkl.DangKyID != dk.DangKyID); // Không phải chính nó
+
+                    if (dangKyDangHocTiep != null)
+                    {
+                        thongTinLienQuan = new
+                        {
+                            lopHocLienQuan = new
+                            {
+                                lopID = dangKyDangHocTiep.LopID,
+                                khoaHocID = dangKyDangHocTiep.LopHoc?.KhoaHocID,
+                                tenKhoaHoc = dangKyDangHocTiep.LopHoc?.KhoaHoc?.TenKhoaHoc,
+                                khoaHoc = dangKyDangHocTiep.LopHoc?.KhoaHoc != null ? new
+                                {
+                                    khoaHocID = dangKyDangHocTiep.LopHoc.KhoaHoc.KhoaHocID,
+                                    tenKhoaHoc = dangKyDangHocTiep.LopHoc.KhoaHoc.TenKhoaHoc
+                                } : null,
+                                giangVien = dangKyDangHocTiep.LopHoc?.GiangVien != null ? new
+                                {
+                                    giangVienID = dangKyDangHocTiep.LopHoc.GiangVien.GiangVienID,
+                                    hoTen = dangKyDangHocTiep.LopHoc.GiangVien.HoTen
+                                } : null,
+                                diaDiem = dangKyDangHocTiep.LopHoc?.DiaDiem != null ? new
+                                {
+                                    diaDiemID = dangKyDangHocTiep.LopHoc.DiaDiem.DiaDiemID,
+                                    tenCoSo = dangKyDangHocTiep.LopHoc.DiaDiem.TenCoSo
+                                } : null,
+                                ngayBatDau = dangKyDangHocTiep.LopHoc?.NgayBatDau.ToString("yyyy-MM-dd")
+                            }
+                        };
+                    }
+                }
+                // 3. Xử lý đăng ký miễn phí (đi học tiếp, học lại, miễn phí khác)
+                else if (isFreeRegistration)
                 {
                     // Kiểm tra xem học viên có sử dụng bảo lưu cho khóa học này không
                     var baoLuuSuDung = _context.BaoLuus
@@ -82,42 +175,115 @@ namespace IZONE.API.Controllers
 
                     if (baoLuuSuDung != null)
                     {
-                        // Kiểm tra xem học viên đã hoàn thành lớp "đi học tiếp" từ bảo lưu chưa
-                        var hasCompletedContinueLearning = _context.DangKyLops
-                            .Include(dkl => dkl.LopHoc)
-                            .Any(dkl => dkl.HocVienID == dk.HocVienID
-                                     && dkl.LopHoc.KhoaHocID == dk.LopHoc.KhoaHocID
-                                     && dkl.TrangThaiDangKy == "DaKetThuc"  // Đã hoàn thành
-                                     && !_context.ThanhToans.Any(t => t.DangKyID == dkl.DangKyID)  // Và là miễn phí
-                                     && dkl.DangKyID != dk.DangKyID); // Không tính đăng ký hiện tại
-
-                        if (hasCompletedContinueLearning)
-                        {
-                            loaiDangKy = "HocLai"; // Đã hoàn thành lớp đi học tiếp, giờ học lại
-                        }
-                        else
-                        {
-                            loaiDangKy = "HocTiep"; // Chưa hoàn thành, đang tiếp tục học
-                        }
+                        // Đây là đăng ký "đi học tiếp" từ bảo lưu
+                        loaiDangKy = "HocTiep";
                     }
-                    // Nếu miễn phí và không có bảo lưu, kiểm tra xem có phải học lại không
                     else
                     {
-                        // Kiểm tra học viên đã từng đăng ký khóa học này trước đó (bất kỳ trạng thái nào)
-                        // Vì chức năng học lại chỉ cho phép đăng ký khi lớp cũ đã kết thúc
-                        var previousRegistration = _context.DangKyLops
+                        // Kiểm tra xem có phải đăng ký học lại không (có ≥ 2 đăng ký cùng khóa học)
+                        var allCourseRegistrations = _context.DangKyLops
                             .Include(dkl => dkl.LopHoc)
                             .Where(dkl => dkl.HocVienID == dk.HocVienID
                                        && dkl.LopHoc.KhoaHocID == dk.LopHoc.KhoaHocID
-                                       && dkl.DangKyID != dk.DangKyID)  // Không tính chính nó
-                            .OrderByDescending(dkl => dkl.NgayDangKy)
-                            .FirstOrDefault();
+                                       && dkl.TrangThaiDangKy != "DaHuy") // Không tính đăng ký đã hủy
+                            .OrderBy(dkl => dkl.NgayDangKy)
+                            .ToList();
 
-                        if (previousRegistration != null)
+                        // Nếu có nhiều hơn 1 đăng ký cho khóa học này = có học lại
+                        if (allCourseRegistrations.Count > 1)
                         {
                             loaiDangKy = "HocLai";
+
+                            // Tìm đăng ký trả phí đầu tiên (lớp gốc)
+                            var firstPaidRegistration = allCourseRegistrations
+                                .Where(dkl => _context.ThanhToans.Any(t => t.DangKyID == dkl.DangKyID))
+                                .OrderBy(dkl => dkl.NgayDangKy)
+                                .FirstOrDefault();
+
+                            if (firstPaidRegistration?.DangKyID == dk.DangKyID)
+                            {
+                                // Đây là lớp gốc và đã có học lại
+                                // Thêm thông tin lớp học lại (lớp mới nhất được đăng ký miễn phí)
+                                var lastFreeRegistration = allCourseRegistrations
+                                    .Where(dkl => !_context.ThanhToans.Any(t => t.DangKyID == dkl.DangKyID)) // Miễn phí
+                                    .OrderByDescending(dkl => dkl.NgayDangKy)
+                                    .FirstOrDefault();
+
+                                if (lastFreeRegistration != null)
+                                {
+                                    thongTinLienQuan = new
+                                    {
+                                        daHocLai = true,
+                                        lopHocLai = new
+                                        {
+                                            lopID = lastFreeRegistration.LopID,
+                                            tenKhoaHoc = lastFreeRegistration.LopHoc?.KhoaHoc?.TenKhoaHoc,
+                                            khoaHoc = lastFreeRegistration.LopHoc?.KhoaHoc != null ? new
+                                            {
+                                                khoaHocID = lastFreeRegistration.LopHoc.KhoaHoc.KhoaHocID,
+                                                tenKhoaHoc = lastFreeRegistration.LopHoc.KhoaHoc.TenKhoaHoc
+                                            } : null,
+                                            giangVien = lastFreeRegistration.LopHoc?.GiangVien != null ? new
+                                            {
+                                                giangVienID = lastFreeRegistration.LopHoc.GiangVien.GiangVienID,
+                                                hoTen = lastFreeRegistration.LopHoc.GiangVien.HoTen
+                                            } : null,
+                                            diaDiem = lastFreeRegistration.LopHoc?.DiaDiem != null ? new
+                                            {
+                                                diaDiemID = lastFreeRegistration.LopHoc.DiaDiem.DiaDiemID,
+                                                tenCoSo = lastFreeRegistration.LopHoc.DiaDiem.TenCoSo
+                                            } : null,
+                                            ngayBatDau = lastFreeRegistration.LopHoc?.NgayBatDau.ToString("yyyy-MM-dd"),
+                                            ngayKetThuc = lastFreeRegistration.LopHoc?.NgayKetThuc?.ToString("yyyy-MM-dd")
+                                        }
+                                    };
+                                }
+                            }
+                            else
+                            {
+                                // Đây là lớp học lại, tìm thông tin lớp gốc
+                                var originalRegistration = firstPaidRegistration;
+                                if (originalRegistration != null)
+                                {
+                                    thongTinLienQuan = new
+                                    {
+                                        lopHocGoc = new
+                                        {
+                                            lopID = originalRegistration.LopID,
+                                            tenKhoaHoc = originalRegistration.LopHoc?.KhoaHoc?.TenKhoaHoc,
+                                            khoaHoc = originalRegistration.LopHoc?.KhoaHoc != null ? new
+                                            {
+                                                khoaHocID = originalRegistration.LopHoc.KhoaHoc.KhoaHocID,
+                                                tenKhoaHoc = originalRegistration.LopHoc.KhoaHoc.TenKhoaHoc
+                                            } : null,
+                                            giangVien = originalRegistration.LopHoc?.GiangVien != null ? new
+                                            {
+                                                giangVienID = originalRegistration.LopHoc.GiangVien.GiangVienID,
+                                                hoTen = originalRegistration.LopHoc.GiangVien.HoTen
+                                            } : null,
+                                            diaDiem = originalRegistration.LopHoc?.DiaDiem != null ? new
+                                            {
+                                                diaDiemID = originalRegistration.LopHoc.DiaDiem.DiaDiemID,
+                                                tenCoSo = originalRegistration.LopHoc.DiaDiem.TenCoSo
+                                            } : null,
+                                            ngayBatDau = originalRegistration.LopHoc?.NgayBatDau.ToString("yyyy-MM-dd"),
+                                            ngayKetThuc = originalRegistration.LopHoc?.NgayKetThuc?.ToString("yyyy-MM-dd")
+                                        }
+                                    };
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // Có thể là đăng ký miễn phí khác (nếu database có dữ liệu cũ)
+                            loaiDangKy = "MienPhi";
                         }
                     }
+                }
+                // 4. Mặc định: đăng ký bình thường (đã trả phí và không có đặc điểm đặc biệt)
+                else
+                {
+                    loaiDangKy = "BinhThuong";
                 }
 
                 return new
@@ -131,6 +297,7 @@ namespace IZONE.API.Controllers
                     ngayHuy = dk.NgayHuy,
                     lyDoHuy = dk.LyDoHuy,
                     loaiDangKy = loaiDangKy,
+                    thongTinLienQuan = thongTinLienQuan,
 
                 // Thông tin lớp học chi tiết
                 lopHoc = dk.LopHoc != null ? new
@@ -1126,10 +1293,10 @@ namespace IZONE.API.Controllers
 
                         await _context.DangKyLops.AddAsync(newDangKyLop);
 
-                        // Cập nhật đăng ký cũ thành "DaHuy"
+                        // Cập nhật đăng ký cũ thành "DaHuy" và lưu thông tin lớp mới
                         originalDangKy.TrangThaiDangKy = "DaHuy";
                         originalDangKy.NgayHuy = DateTime.Now;
-                        originalDangKy.LyDoHuy = "Đổi sang lớp khác";
+                        originalDangKy.LyDoHuy = $"Đổi sang lớp ID: {newClass.LopID}";
 
                         // LƯU THAY ĐỔI ĐỂ TẠO ID TRONG DATABASE TRƯỚC
                         await _context.SaveChangesAsync();
