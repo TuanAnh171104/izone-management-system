@@ -15,29 +15,18 @@ namespace IZONE.Infrastructure.Repositories
         {
             return await _context.ChiPhis
                 .Include(cp => cp.LopHoc)
-                .Include(cp => cp.KhoaHoc)
                 .Include(cp => cp.DiaDiem)
                 .Where(cp => cp.LopID == lopId)
                 .OrderByDescending(cp => cp.NgayPhatSinh)
                 .ToListAsync();
         }
 
-        public async Task<IEnumerable<ChiPhi>> GetByKhoaHocIdAsync(int khoaHocId)
-        {
-            return await _context.ChiPhis
-                .Include(cp => cp.LopHoc)
-                .Include(cp => cp.KhoaHoc)
-                .Include(cp => cp.DiaDiem)
-                .Where(cp => cp.KhoaHocID == khoaHocId)
-                .OrderByDescending(cp => cp.NgayPhatSinh)
-                .ToListAsync();
-        }
+
 
         public async Task<IEnumerable<ChiPhi>> GetByDiaDiemIdAsync(int diaDiemId)
         {
             return await _context.ChiPhis
                 .Include(cp => cp.LopHoc)
-                .Include(cp => cp.KhoaHoc)
                 .Include(cp => cp.DiaDiem)
                 .Where(cp => cp.DiaDiemID == diaDiemId)
                 .OrderByDescending(cp => cp.NgayPhatSinh)
@@ -48,7 +37,6 @@ namespace IZONE.Infrastructure.Repositories
         {
             return await _context.ChiPhis
                 .Include(cp => cp.LopHoc)
-                .Include(cp => cp.KhoaHoc)
                 .Include(cp => cp.DiaDiem)
                 .Where(cp => cp.LoaiChiPhi == loai)
                 .OrderByDescending(cp => cp.NgayPhatSinh)
@@ -59,7 +47,6 @@ namespace IZONE.Infrastructure.Repositories
         {
             return await _context.ChiPhis
                 .Include(cp => cp.LopHoc)
-                .Include(cp => cp.KhoaHoc)
                 .Include(cp => cp.DiaDiem)
                 .Where(cp => cp.SubLoai == subLoai)
                 .OrderByDescending(cp => cp.NgayPhatSinh)
@@ -70,7 +57,6 @@ namespace IZONE.Infrastructure.Repositories
         {
             return await _context.ChiPhis
                 .Include(cp => cp.LopHoc)
-                .Include(cp => cp.KhoaHoc)
                 .Include(cp => cp.DiaDiem)
                 .Where(cp => cp.NguonChiPhi == nguonChiPhi)
                 .OrderByDescending(cp => cp.NgayPhatSinh)
@@ -81,7 +67,6 @@ namespace IZONE.Infrastructure.Repositories
         {
             return await _context.ChiPhis
                 .Include(cp => cp.LopHoc)
-                .Include(cp => cp.KhoaHoc)
                 .Include(cp => cp.DiaDiem)
                 .Where(cp => cp.AllocationMethod == allocationMethod)
                 .OrderByDescending(cp => cp.NgayPhatSinh)
@@ -92,7 +77,6 @@ namespace IZONE.Infrastructure.Repositories
         {
             return await _context.ChiPhis
                 .Include(cp => cp.LopHoc)
-                .Include(cp => cp.KhoaHoc)
                 .Include(cp => cp.DiaDiem)
                 .Where(cp => cp.NgayPhatSinh >= startDate && cp.NgayPhatSinh <= endDate)
                 .OrderByDescending(cp => cp.NgayPhatSinh)
@@ -106,18 +90,12 @@ namespace IZONE.Infrastructure.Repositories
                 .SumAsync(cp => cp.SoTien);
         }
 
-        public async Task<decimal> GetTotalCostByKhoaHocIdAsync(int khoaHocId)
-        {
-            return await _context.ChiPhis
-                .Where(cp => cp.KhoaHocID == khoaHocId)
-                .SumAsync(cp => cp.SoTien);
-        }
+
 
         public async Task<IEnumerable<ChiPhi>> GetRecurringCostsAsync()
         {
             return await _context.ChiPhis
                 .Include(cp => cp.LopHoc)
-                .Include(cp => cp.KhoaHoc)
                 .Include(cp => cp.DiaDiem)
                 .Where(cp => cp.Recurring == true)
                 .OrderByDescending(cp => cp.NgayPhatSinh)

@@ -358,6 +358,7 @@ namespace IZONE.Infrastructure.Services
                            SoTien = cp.SoTien,
                            NgayPhatSinh = cp.NgayPhatSinh,
                            LopHoc = lh.LopID > 0 ? $"Lớp {lh.LopID}" : "",
+                           KhoaHoc = kh.TenKhoaHoc ?? "",
                            DiaDiem = dd.TenCoSo ?? ""
                        };
 
@@ -375,6 +376,7 @@ namespace IZONE.Infrastructure.Services
                     ["SoTien"] = d.SoTien,
                     ["NgayPhatSinh"] = d.NgayPhatSinh,
                     ["LopHoc"] = d.LopHoc,
+                    ["KhoaHoc"] = d.KhoaHoc,
                     ["DiaDiem"] = d.DiaDiem
                 }).Cast<Dictionary<string, object>>().ToList(),
                 Summary = new Dictionary<string, object>

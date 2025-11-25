@@ -208,12 +208,7 @@ namespace IZONE.Infrastructure.Data
                 .HasForeignKey(c => c.LopID)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            // KhoaHoc - ChiPhi relationship
-            modelBuilder.Entity<KhoaHoc>()
-                .HasMany<ChiPhi>()
-                .WithOne(cp => cp.KhoaHoc)
-                .HasForeignKey(cp => cp.KhoaHocID)
-                .OnDelete(DeleteBehavior.SetNull);
+
 
             // DiaDiem - ChiPhi relationship
             modelBuilder.Entity<DiaDiem>()

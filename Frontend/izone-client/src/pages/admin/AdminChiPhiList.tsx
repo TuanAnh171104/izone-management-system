@@ -197,9 +197,14 @@ const AdminChiPhiList: React.FC = () => {
         filtered = filtered.filter(cost => cost.lopID === parseInt(filters.lopID));
       }
 
-      // Lọc theo khóa học
+      // Lọc theo khóa học - kiểm tra qua lopHoc
       if (filters.khoaHocID) {
-        filtered = filtered.filter(cost => cost.khoaHocID === parseInt(filters.khoaHocID));
+        const khoaHocIdFilter = parseInt(filters.khoaHocID);
+        filtered = filtered.filter(cost => {
+          if (!cost.lopID) return false;
+          const lopHoc = lopHocList.find(l => l.lopID === cost.lopID);
+          return lopHoc && lopHoc.khoaHocID === khoaHocIdFilter;
+        });
       }
 
       // Lọc theo địa điểm
@@ -277,10 +282,12 @@ const AdminChiPhiList: React.FC = () => {
     return lop ? `Lớp ${lop.lopID}` : `Lớp ${lopID}`;
   };
 
-  const getKhoaHocName = (khoaHocID?: number | null) => {
-    if (!khoaHocID) return '-';
-    const khoaHoc = khoaHocList.find(k => k.khoaHocID === khoaHocID);
-    return khoaHoc ? khoaHoc.tenKhoaHoc : `KH ${khoaHocID}`;
+  const getKhoaHocName = (lopID?: number | null) => {
+    if (!lopID) return '-';
+    const lopHoc = lopHocList.find(l => l.lopID === lopID);
+    if (!lopHoc || !lopHoc.khoaHocID) return '-';
+    const khoaHoc = khoaHocList.find(k => k.khoaHocID === lopHoc.khoaHocID);
+    return khoaHoc ? khoaHoc.tenKhoaHoc : `KH ${lopHoc.khoaHocID}`;
   };
 
   const getDiaDiemName = (diaDiemID?: number | null) => {
@@ -483,7 +490,7 @@ const AdminChiPhiList: React.FC = () => {
       soTien: Number(chiPhi.soTien),
       ngayPhatSinh: chiPhi.ngayPhatSinh,
       lopID: chiPhi.lopID?.toString() || '',
-      khoaHocID: chiPhi.khoaHocID?.toString() || '',
+      khoaHocID: '', // Khóa học sẽ được tự động lấy từ LopHoc
       diaDiemID: chiPhi.diaDiemID?.toString() || '',
       allocationMethod: chiPhi.allocationMethod,
       nguonGoc: chiPhi.nguonGoc,
@@ -669,14 +676,14 @@ const AdminChiPhiList: React.FC = () => {
     // Tạo file Excel mẫu với header đầy đủ các cột
     const headers = [
       'LoaiChiPhi', 'SubLoai', 'SoTien', 'NgayPhatSinh',
-      'LopID', 'KhoaHocID', 'DiaDiemID',
+      'LopID', 'DiaDiemID',
       'NguoiNhap', 'NguonChiPhi', 'AllocationMethod', 'NguonGoc'
     ];
 
     const csvContent = headers.join(',') + '\n' +
-      'LuongGV,Lương giảng viên,5000000,2024-01-15,1,1,1,Nguyễn Văn A,Chi phí nhân sự,SeatHours,NhapTay\n' +
-      'TaiLieu,Sách giáo khoa,1500000,2024-01-20,,2,1,Trần Thị B,Học liệu,PerStudent,NhapTay\n' +
-      'MatBang,Thuê mặt bằng,8000000,2024-01-01,,,,Nguyễn Văn C,Chi phí mặt bằng,SeatHours,NhapTay';
+      'LuongGV,Lương giảng viên,5000000,2024-01-15,281,,Nguyễn Văn A,Chi phí nhân sự,PerStudent,NhapTay\n' +
+      'TaiLieu,Sách giáo khoa,1500000,2024-01-20,281,,Trần Thị B,Học liệu,PerStudent,NhapTay\n' +
+      'MatBang,Thuê mặt bằng,8000000,2024-01-01,,3,Nguyễn Văn C,Chi phí mặt bằng,PerStudent,NhapTay';
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -1283,7 +1290,7 @@ const AdminChiPhiList: React.FC = () => {
                   {formatCurrency(cost.soTien)}
                 </td>
                 <td>{getLopHocName(cost.lopID)}</td>
-                <td>{getKhoaHocName(cost.khoaHocID)}</td>
+                <td>{getKhoaHocName(cost.lopID)}</td>
                 <td>{getDiaDiemName(cost.diaDiemID)}</td>
                 <td>{cost.allocationMethod}</td>
                 <td>
@@ -2504,12 +2511,6 @@ const AdminChiPhiList: React.FC = () => {
                             border: '1px solid #dee2e6',
                             textAlign: 'left',
                             fontWeight: '600'
-                          }}>Khóa học</th>
-                          <th style={{
-                            padding: '10px',
-                            border: '1px solid #dee2e6',
-                            textAlign: 'left',
-                            fontWeight: '600'
                           }}>Địa điểm</th>
                           <th style={{
                             padding: '10px',
@@ -2549,10 +2550,6 @@ const AdminChiPhiList: React.FC = () => {
                               padding: '8px 10px',
                               border: '1px solid #dee2e6'
                             }}>{item.lopID ? getLopHocName(parseInt(item.lopID)) : '-'}</td>
-                            <td style={{
-                              padding: '8px 10px',
-                              border: '1px solid #dee2e6'
-                            }}>{item.khoaHocID ? getKhoaHocName(parseInt(item.khoaHocID)) : '-'}</td>
                             <td style={{
                               padding: '8px 10px',
                               border: '1px solid #dee2e6'

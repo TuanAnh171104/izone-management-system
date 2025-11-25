@@ -5,7 +5,6 @@ namespace IZONE.Core.Interfaces
     public interface IChiPhiRepository : IGenericRepository<ChiPhi>
     {
         Task<IEnumerable<ChiPhi>> GetByLopIdAsync(int lopId);
-        Task<IEnumerable<ChiPhi>> GetByKhoaHocIdAsync(int khoaHocId);
         Task<IEnumerable<ChiPhi>> GetByDiaDiemIdAsync(int diaDiemId);
         Task<IEnumerable<ChiPhi>> GetByLoaiAsync(string loai);
         Task<IEnumerable<ChiPhi>> GetBySubLoaiAsync(string subLoai);
@@ -13,7 +12,6 @@ namespace IZONE.Core.Interfaces
         Task<IEnumerable<ChiPhi>> GetByAllocationMethodAsync(string allocationMethod);
         Task<IEnumerable<ChiPhi>> GetByDateRangeAsync(DateTime startDate, DateTime endDate);
         Task<decimal> GetTotalCostByLopIdAsync(int lopId);
-        Task<decimal> GetTotalCostByKhoaHocIdAsync(int khoaHocId);
         Task<IEnumerable<ChiPhi>> GetRecurringCostsAsync();
     }
 }

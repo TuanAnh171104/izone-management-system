@@ -182,13 +182,12 @@ namespace IZONE.Infrastructure.Services
 
                 // Đọc các cột ID (có thể null)
                 chiPhi.LopID = GetNullableIntValue(worksheet, row, 5); // Cột E - LopID
-                chiPhi.KhoaHocID = GetNullableIntValue(worksheet, row, 6); // Cột F - KhoaHocID
-                chiPhi.DiaDiemID = GetNullableIntValue(worksheet, row, 7); // Cột G - DiaDiemID
+                chiPhi.DiaDiemID = GetNullableIntValue(worksheet, row, 6); // Cột F - DiaDiemID
 
-                chiPhi.NguoiNhap = GetStringValue(worksheet, row, 8); // Cột H
-                chiPhi.NguonChiPhi = GetStringValue(worksheet, row, 9); // Cột I
-                chiPhi.AllocationMethod = GetStringValue(worksheet, row, 10) ?? "SeatHours"; // Cột J
-                chiPhi.NguonGoc = GetStringValue(worksheet, row, 11) ?? "NhapTay"; // Cột K
+                chiPhi.NguoiNhap = GetStringValue(worksheet, row, 7); // Cột G
+                chiPhi.NguonChiPhi = GetStringValue(worksheet, row, 8); // Cột H
+                chiPhi.AllocationMethod = GetStringValue(worksheet, row, 9) ?? "SeatHours"; // Cột I
+                chiPhi.NguonGoc = GetStringValue(worksheet, row, 10) ?? "NhapTay"; // Cột J
 
                 // Validate required fields với thông báo chi tiết
                 if (string.IsNullOrEmpty(chiPhi.LoaiChiPhi))
@@ -262,9 +261,7 @@ namespace IZONE.Infrastructure.Services
                         case "lopid":
                             chiPhi.LopID = ParseNullableInt(value);
                             break;
-                        case "khoahocid":
-                            chiPhi.KhoaHocID = ParseNullableInt(value);
-                            break;
+
                         case "diadiemid":
                             chiPhi.DiaDiemID = ParseNullableInt(value);
                             break;
@@ -348,6 +345,20 @@ namespace IZONE.Infrastructure.Services
             if (value == null)
                 throw new Exception("Ngày phát sinh không được để trống");
 
+            // Handle Excel serial date format (OADate - double type)
+            if (value is double serialDate)
+            {
+                try
+                {
+                    return DateTime.FromOADate(serialDate);
+                }
+                catch (Exception)
+                {
+                    throw new Exception($"Ngày phát sinh không hợp lệ (Excel serial date): {serialDate}");
+                }
+            }
+
+            // Handle string date format
             if (DateTime.TryParse(value.ToString(), out DateTime result))
                 return result;
 
@@ -386,7 +397,6 @@ namespace IZONE.Infrastructure.Services
                                     soTien = chiPhi.SoTien,
                                     ngayPhatSinh = chiPhi.NgayPhatSinh.ToString("yyyy-MM-dd"),
                                     lopID = chiPhi.LopID,
-                                    khoaHocID = chiPhi.KhoaHocID,
                                     diaDiemID = chiPhi.DiaDiemID,
                                     nguoiNhap = chiPhi.NguoiNhap,
                                     nguonChiPhi = chiPhi.NguonChiPhi,
@@ -404,7 +414,6 @@ namespace IZONE.Infrastructure.Services
                                 soTien = 0,
                                 ngayPhatSinh = "",
                                 lopID = (int?)null,
-                                khoaHocID = (int?)null,
                                 diaDiemID = (int?)null,
                                 nguoiNhap = "",
                                 nguonChiPhi = ex.Message,
@@ -498,7 +507,6 @@ namespace IZONE.Infrastructure.Services
                                     soTien = chiPhi.SoTien,
                                     ngayPhatSinh = chiPhi.NgayPhatSinh.ToString("yyyy-MM-dd"),
                                     lopID = chiPhi.LopID,
-                                    khoaHocID = chiPhi.KhoaHocID,
                                     diaDiemID = chiPhi.DiaDiemID,
                                     nguoiNhap = chiPhi.NguoiNhap,
                                     nguonChiPhi = chiPhi.NguonChiPhi,

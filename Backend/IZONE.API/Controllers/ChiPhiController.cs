@@ -46,12 +46,7 @@ namespace IZONE.API.Controllers
             return Ok(chiPhis);
         }
 
-        [HttpGet("khoa-hoc/{khoaHocId}")]
-        public async Task<ActionResult<IEnumerable<ChiPhi>>> GetByKhoaHocId(int khoaHocId)
-        {
-            var chiPhis = await _chiPhiRepository.GetByKhoaHocIdAsync(khoaHocId);
-            return Ok(chiPhis);
-        }
+
 
         [HttpGet("dia-diem/{diaDiemId}")]
         public async Task<ActionResult<IEnumerable<ChiPhi>>> GetByDiaDiemId(int diaDiemId)
@@ -102,12 +97,7 @@ namespace IZONE.API.Controllers
             return Ok(total);
         }
 
-        [HttpGet("total-cost/khoa-hoc/{khoaHocId}")]
-        public async Task<ActionResult<decimal>> GetTotalCostByKhoaHocId(int khoaHocId)
-        {
-            var total = await _chiPhiRepository.GetTotalCostByKhoaHocIdAsync(khoaHocId);
-            return Ok(total);
-        }
+
 
         [HttpGet("recurring")]
         public async Task<ActionResult<IEnumerable<ChiPhi>>> GetRecurringCosts()

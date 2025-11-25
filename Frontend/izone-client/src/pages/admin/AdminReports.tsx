@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { baoCaoService } from '../../services/api';
+import { mapLoaiChiPhi } from '../../utils/statusMapping';
 import '../../styles/Management.css';
 import '../../styles/Reports.css';
 
@@ -34,6 +35,7 @@ const COLUMN_CONFIGS: { [key: string]: any[] } = {
     { key: 'SoTien', label: 'Số tiền', type: 'currency' },
     { key: 'NgayPhatSinh', label: 'Ngày phát sinh', type: 'date' },
     { key: 'LopHoc', label: 'Lớp học', type: 'text' },
+    { key: 'KhoaHoc', label: 'Khóa học', type: 'text' },
     { key: 'DiaDiem', label: 'Địa điểm', type: 'text' }
   ],
   BaoCaoLoiNhuanGopTheoLop: [
@@ -234,6 +236,17 @@ const AdminReports: React.FC = () => {
         default:
           return value.toString();
       }
+    };
+
+    const formatValueForPrint = (value: any, col: any) => {
+      if (!value) return '';
+
+      // Cụ thể cho LoaiChiPhi
+      if (col.key === 'LoaiChiPhi' && selectedReportType === 'BaoCaoChiPhiChiTiet') {
+        return mapLoaiChiPhi(value);
+      }
+
+      return formatValue(value, col.type);
     };
 
     // Tính tổng cộng cho các báo cáo đặc biệt
@@ -543,7 +556,7 @@ const AdminReports: React.FC = () => {
                 ${reportData.map((row, index) => `
                   <tr>
                     <td style="border: 1px solid #000; padding: 8px; text-align: center;">${index + 1}</td>
-                    ${columns.map(col => `<td style="border: 1px solid #000; padding: 8px; text-align: ${col.type === 'currency' || col.type === 'number' || col.type === 'percentage' ? 'right' : 'left'};">${formatValue(row[col.key], col.type)}</td>`).join('')}
+                    ${columns.map(col => `<td style="border: 1px solid #000; padding: 8px; text-align: ${col.type === 'currency' || col.type === 'number' || col.type === 'percentage' ? 'right' : 'left'};">${formatValueForPrint(row[col.key], col)}</td>`).join('')}
                   </tr>
                 `).join('')}
                 ${getTotalRow()}
@@ -764,7 +777,9 @@ const AdminReports: React.FC = () => {
                         <td>{rowIndex + 1}</td>
                         {getColumnsForReportType(selectedReportType).map((col, colIndex) => (
                           <td key={colIndex}>
-                            {formatCellValue(row[col.key], col.type)}
+                            {col.key === 'LoaiChiPhi' && selectedReportType === 'BaoCaoChiPhiChiTiet'
+                              ? mapLoaiChiPhi(row[col.key])
+                              : formatCellValue(row[col.key], col.type)}
                           </td>
                         ))}
                       </tr>
