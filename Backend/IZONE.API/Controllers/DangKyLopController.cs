@@ -8,6 +8,7 @@ using System.Text;
 using System.Web;
 using Microsoft.Extensions.Configuration;
 using System.IO;
+using System.ComponentModel.DataAnnotations;
 
 namespace IZONE.API.Controllers
 {
@@ -1433,6 +1434,140 @@ namespace IZONE.API.Controllers
             }
         }
 
+        // POST: api/DangKyLop/admin-register-student
+        [HttpPost("admin-register-student")]
+        public async Task<IActionResult> AdminRegisterStudent([FromBody] AdminRegisterStudentRequest request)
+        {
+            try
+            {
+                // 1. Validate request
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                if (request.HocVienID <= 0 || request.LopID <= 0)
+                {
+                    return BadRequest("HocVienID và LopID phải lớn hơn 0");
+                }
+
+                // 2. Kiểm tra học viên tồn tại
+                var hocVien = await _context.HocViens.FindAsync(request.HocVienID);
+                if (hocVien == null)
+                {
+                    return NotFound($"Học viên với ID {request.HocVienID} không tồn tại");
+                }
+
+                // 3. Kiểm tra lớp học tồn tại
+                var lopHoc = await _context.LopHocs
+                    .Include(l => l.KhoaHoc)
+                    .FirstOrDefaultAsync(l => l.LopID == request.LopID);
+
+                if (lopHoc == null)
+                {
+                    return NotFound($"Lớp học với ID {request.LopID} không tồn tại");
+                }
+
+                // 4. Kiểm tra học viên đã đăng ký lớp này chưa
+                var existingRegistration = await _context.DangKyLops
+                    .FirstOrDefaultAsync(dk => dk.HocVienID == request.HocVienID && dk.LopID == request.LopID);
+
+                if (existingRegistration != null)
+                {
+                    return BadRequest("Học viên đã đăng ký lớp học này");
+                }
+
+                // 5. Kiểm tra sức chứa lớp
+                var registeredCount = await _context.DangKyLops
+                    .CountAsync(dk => dk.LopID == request.LopID && dk.TrangThaiDangKy == "DangHoc");
+
+                if (lopHoc.SoLuongToiDa.HasValue && registeredCount >= lopHoc.SoLuongToiDa.Value)
+                {
+                    return BadRequest("Lớp học đã đầy, không thể đăng ký thêm");
+                }
+
+                // 6. Lấy học phí từ khóa học
+                decimal hocPhi = lopHoc.KhoaHoc?.HocPhi ?? 0;
+
+                // 7. Tạo đăng ký và thanh toán với transaction
+                var strategy = _context.Database.CreateExecutionStrategy();
+
+                return await strategy.ExecuteAsync(async () =>
+                {
+                    using var transaction = await _context.Database.BeginTransactionAsync();
+                    try
+                    {
+                        // Tạo đăng ký lớp
+                        var dangKyLop = new DangKyLop
+                        {
+                            HocVienID = request.HocVienID,
+                            LopID = request.LopID,
+                            NgayDangKy = DateTime.Now,
+                            TrangThaiDangKy = "DangHoc",
+                            TrangThaiThanhToan = "DaThanhToan" // Thanh toán tiền mặt ngay lập tức
+                        };
+
+                        await _context.DangKyLops.AddAsync(dangKyLop);
+                        await _context.SaveChangesAsync(); // Lưu để có DangKyID
+
+                        // Tạo thanh toán tiền mặt
+                        var transactionRef = $"CASH-{DateTime.Now:yyyyMMddHHmmss}-{request.HocVienID}";
+                        var thanhToan = new ThanhToan
+                        {
+                            HocVienID = request.HocVienID,
+                            DangKyID = dangKyLop.DangKyID,
+                            SoTien = hocPhi,
+                            PhuongThuc = "TienMat", // Thanh toán tiền mặt
+                            Provider = "Admin",
+                            TransactionRef = transactionRef,
+                            Status = "Success", // Thanh toán thành công ngay lập tức
+                            GhiChu = $"Thanh toán tiền mặt tại trung tâm - {lopHoc.KhoaHoc?.TenKhoaHoc}",
+                            NgayThanhToan = DateTime.Now
+                        };
+
+                        await _context.ThanhToans.AddAsync(thanhToan);
+                        await _context.SaveChangesAsync();
+
+                        await transaction.CommitAsync();
+
+                        return CreatedAtAction(nameof(GetById), new { id = dangKyLop.DangKyID }, new
+                        {
+                            dangKyID = dangKyLop.DangKyID,
+                            hocVienID = dangKyLop.HocVienID,
+                            lopID = dangKyLop.LopID,
+                            ngayDangKy = dangKyLop.NgayDangKy,
+                            trangThaiDangKy = dangKyLop.TrangThaiDangKy,
+                            trangThaiThanhToan = dangKyLop.TrangThaiThanhToan,
+                            thanhToanID = thanhToan.ThanhToanID,
+                            soTien = thanhToan.SoTien,
+                            phuongThuc = thanhToan.PhuongThuc,
+                            message = "Đăng ký học viên thành công với thanh toán tiền mặt",
+                            lopHoc = new
+                            {
+                                lopID = lopHoc.LopID,
+                                tenKhoaHoc = lopHoc.KhoaHoc?.TenKhoaHoc,
+                                hocPhi = hocPhi
+                            },
+                            hocVien = new
+                            {
+                                hocVienID = hocVien.HocVienID,
+                                hoTen = hocVien.HoTen
+                            }
+                        });
+                    }
+                    catch (Exception)
+                    {
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Lỗi khi đăng ký học viên", error = ex.Message });
+            }
+        }
+
         // Helper: Generate VNPay payment URL - Copy from ThanhToanController
         private string GenerateVNPayPaymentUrl(decimal amount, string orderInfo, string orderType, string transactionRef, int thanhToanId)
         {
@@ -1552,5 +1687,16 @@ namespace IZONE.API.Controllers
                 return "127.0.0.1";
             }
         }
+    }
+
+    // Request/Response models
+    public class AdminRegisterStudentRequest {
+        [Required(ErrorMessage = "HocVienID là bắt buộc")]
+        [Range(1, int.MaxValue, ErrorMessage = "HocVienID phải lớn hơn 0")]
+        public int HocVienID { get; set; }
+
+        [Required(ErrorMessage = "LopID là bắt buộc")]
+        [Range(1, int.MaxValue, ErrorMessage = "LopID phải lớn hơn 0")]
+        public int LopID { get; set; }
     }
 }

@@ -27,6 +27,8 @@ interface ExtendedDangKyLop extends DangKyLop {
     trangThai: string;
   };
   loaiDangKy?: string;
+  diemTrungBinh?: number;
+  tiLeDiemDanh?: number;
 }
 
 const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
@@ -53,7 +55,40 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
 
       // Fetch registrations with class details
       const data = await dangKyLopService.getByHocVienIdWithDetails(student.hocVienID);
-      setRegistrations(data as ExtendedDangKyLop[]);
+
+      // Load academic results for each registration
+      const registrationsWithResults = await Promise.all(
+        (data as ExtendedDangKyLop[]).map(async (registration) => {
+          const extendedReg = { ...registration };
+
+          // Only load results for classes that have started or finished
+          if (registration.lopHoc && (registration.lopHoc.trangThai === 'DangDienRa' || registration.lopHoc.trangThai === 'DaKetThuc')) {
+            try {
+              // Load average grade
+              const diemResponse = await fetch(`http://localhost:5080/api/DiemSo/diem-trung-binh/hoc-vien/${student.hocVienID}/lop/${registration.lopID}`);
+              if (diemResponse.ok) {
+                extendedReg.diemTrungBinh = await diemResponse.json();
+              }
+            } catch (error) {
+              console.warn(`Không thể lấy điểm trung bình cho lớp ${registration.lopID}:`, error);
+            }
+
+            try {
+              // Load attendance rate
+              const diemDanhResponse = await fetch(`http://localhost:5080/api/DiemDanh/attendance-rate/hoc-vien/${student.hocVienID}/lop/${registration.lopID}`);
+              if (diemDanhResponse.ok) {
+                extendedReg.tiLeDiemDanh = await diemDanhResponse.json();
+              }
+            } catch (error) {
+              console.warn(`Không thể lấy tỷ lệ điểm danh cho lớp ${registration.lopID}:`, error);
+            }
+          }
+
+          return extendedReg;
+        })
+      );
+
+      setRegistrations(registrationsWithResults);
     } catch (error) {
       console.error('Lỗi khi tải lịch sử đăng ký:', error);
       setError('Không thể tải lịch sử đăng ký lớp. Vui lòng thử lại.');
@@ -382,6 +417,75 @@ const StudentDetailsModal: React.FC<StudentDetailsModalProps> = ({
                             </div>
                           )}
                         </div>
+
+                        {/* Academic Results Section */}
+                        {(registration.lopHoc?.trangThai === 'DangDienRa' || registration.lopHoc?.trangThai === 'DaKetThuc') && (
+                          <div style={{
+                            marginTop: '16px',
+                            padding: '16px',
+                            background: '#f8f9fa',
+                            borderRadius: '8px',
+                            border: '1px solid #e9ecef'
+                          }}>
+                            <h5 style={{
+                              margin: '0 0 12px 0',
+                              color: '#dc2626',
+                              fontSize: '16px',
+                              fontWeight: '600',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px'
+                            }}>
+                              <i className="fas fa-chart-line"></i>
+                              Kết quả học tập
+                            </h5>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px' }}>
+                              <div style={{ textAlign: 'center' }}>
+                                <div style={{
+                                  fontSize: '24px',
+                                  fontWeight: '700',
+                                  color: registration.diemTrungBinh !== undefined && registration.diemTrungBinh >= 5.5 ? '#059669' : '#dc2626',
+                                  marginBottom: '4px'
+                                }}>
+                                  {registration.diemTrungBinh !== undefined ? registration.diemTrungBinh.toFixed(1) : '--'}
+                                </div>
+                                <div style={{ fontSize: '12px', color: '#6c757d' }}>
+                                  <i className="fas fa-graduation-cap"></i> Điểm trung bình
+                                </div>
+                              </div>
+                              <div style={{ textAlign: 'center' }}>
+                                <div style={{
+                                  fontSize: '24px',
+                                  fontWeight: '700',
+                                  color: registration.tiLeDiemDanh !== undefined ?
+                                    (registration.tiLeDiemDanh >= 80 ? '#059669' :
+                                     registration.tiLeDiemDanh >= 60 ? '#d97706' : '#dc2626') : '#6c757d',
+                                  marginBottom: '4px'
+                                }}>
+                                  {registration.tiLeDiemDanh !== undefined ? `${registration.tiLeDiemDanh.toFixed(0)}%` : '--'}
+                                </div>
+                                <div style={{ fontSize: '12px', color: '#6c757d' }}>
+                                  <i className="fas fa-calendar-check"></i> Tỷ lệ điểm danh
+                                </div>
+                              </div>
+                              <div style={{ textAlign: 'center' }}>
+                                <div style={{
+                                  fontSize: '24px',
+                                  fontWeight: '700',
+                                  color: (registration.diemTrungBinh !== undefined && registration.diemTrungBinh >= 5.5) ? '#059669' : '#dc2626',
+                                  marginBottom: '4px'
+                                }}>
+                                  {registration.diemTrungBinh !== undefined ?
+                                    (registration.diemTrungBinh >= 5.5 ? '✓' : '✗') : '--'
+                                  }
+                                </div>
+                                <div style={{ fontSize: '12px', color: '#6c757d' }}>
+                                  <i className="fas fa-trophy"></i> Đạt yêu cầu
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

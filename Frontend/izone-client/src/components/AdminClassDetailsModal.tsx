@@ -2,6 +2,407 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { dangKyLopService, DangKyLop, hocVienService, HocVien, lopHocService, LopHoc } from '../services/api';
 import { mapLopHocStatus, mapTrangThaiDangKy, mapTrangThaiThanhToan } from '../utils/statusMapping';
 
+// Modal thêm học viên vào lớp
+interface AdminAddStudentModalProps {
+  lopHoc: LopHoc;
+  isOpen: boolean;
+  onClose: () => void;
+  onStudentAdded: () => void;
+}
+
+const AdminAddStudentModal: React.FC<AdminAddStudentModalProps> = ({
+  lopHoc,
+  isOpen,
+  onClose,
+  onStudentAdded
+}) => {
+  const [allStudents, setAllStudents] = useState<HocVien[]>([]);
+  const [filteredStudents, setFilteredStudents] = useState<HocVien[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStudents, setSelectedStudents] = useState<HocVien[]>([]);
+  const [addingStudents, setAddingStudents] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadAllStudents();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    // Lọc học viên theo từ khóa tìm kiếm
+    const filtered = allStudents.filter(student =>
+      student.hoTen.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (student.email && student.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (student.sdt && student.sdt.includes(searchTerm))
+    );
+    setFilteredStudents(filtered);
+  }, [allStudents, searchTerm]);
+
+  const loadAllStudents = async () => {
+    setLoading(true);
+    try {
+      const students = await hocVienService.getAll();
+      setAllStudents(students);
+      setFilteredStudents(students);
+    } catch (error: any) {
+      console.error('Lỗi khi tải danh sách học viên:', error);
+      alert('Không thể tải danh sách học viên. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleStudent = (student: HocVien) => {
+    setSelectedStudents(prev => {
+      const isSelected = prev.some(s => s.hocVienID === student.hocVienID);
+      if (isSelected) {
+        return prev.filter(s => s.hocVienID !== student.hocVienID);
+      } else {
+        return [...prev, student];
+      }
+    });
+  };
+
+  const handleAddStudents = async () => {
+    if (selectedStudents.length === 0) return;
+
+    setAddingStudents(true);
+    let successCount = 0;
+    let errorMessages: string[] = [];
+
+    try {
+      // Thêm từng học viên một cách tuần tự
+      for (const student of selectedStudents) {
+        try {
+          await dangKyLopService.adminRegisterStudent({
+            hocVienID: student.hocVienID,
+            lopID: lopHoc.lopID
+          });
+          successCount++;
+        } catch (error: any) {
+          console.error(`Lỗi khi thêm học viên ${student.hoTen}:`, error);
+          errorMessages.push(`${student.hoTen}: ${error.response?.data?.message || error.message}`);
+        }
+      }
+
+      // Hiển thị kết quả
+      if (successCount > 0) {
+        alert(`Đã thêm thành công ${successCount}/${selectedStudents.length} học viên vào lớp!`);
+        onStudentAdded(); // Refresh danh sách học viên
+        onClose(); // Đóng modal
+      } else {
+        alert('Không thể thêm học viên nào vào lớp. Vui lòng thử lại.');
+      }
+
+      // Hiển thị lỗi nếu có
+      if (errorMessages.length > 0) {
+        console.error('Các lỗi khi thêm học viên:', errorMessages);
+      }
+
+    } catch (error: any) {
+      console.error('Lỗi tổng quát khi thêm học viên:', error);
+      alert(`Lỗi khi thêm học viên: ${error.message}`);
+    } finally {
+      setAddingStudents(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1100,
+      padding: '20px'
+    }}>
+      <div style={{
+        background: 'white',
+        borderRadius: '12px',
+        width: '90%',
+        maxWidth: '600px',
+        maxHeight: '80vh',
+        overflow: 'hidden',
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)'
+      }}>
+        {/* Header */}
+        <div style={{
+          background: '#059669',
+          color: 'white',
+          padding: '20px 24px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>
+            <i className="fas fa-user-plus"></i> Thêm học viên vào lớp
+          </h2>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              color: 'white',
+              fontSize: '18px',
+              cursor: 'pointer',
+              padding: '6px',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '6px'
+            }}
+          >
+            <i className="fas fa-times"></i>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div style={{
+          padding: '24px',
+          maxHeight: '70vh',
+          overflow: 'auto'
+        }}>
+          {/* Thông tin lớp */}
+          <div style={{
+            background: '#f0fdf4',
+            border: '1px solid #bbf7d0',
+            borderRadius: '8px',
+            padding: '16px',
+            marginBottom: '20px'
+          }}>
+            <h4 style={{ margin: '0 0 8px 0', color: '#166534' }}>
+              <i className="fas fa-school"></i> Lớp học: ID {lopHoc.lopID}
+            </h4>
+            <p style={{ margin: 0, color: '#166534', fontSize: '14px' }}>
+              Học phí: Chưa xác định VND
+            </p>
+          </div>
+
+          {/* Tìm kiếm */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#374151' }}>
+              <i className="fas fa-search"></i> Tìm kiếm học viên:
+            </label>
+            <input
+              type="text"
+              placeholder="Nhập tên, email hoặc số điện thoại..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '1px solid #d1d5db',
+                borderRadius: '8px',
+                fontSize: '14px',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+
+          {/* Danh sách học viên với checkbox */}
+          <div style={{
+            maxHeight: '300px',
+            overflow: 'auto',
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px'
+          }}>
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+                <i className="fas fa-spinner fa-spin" style={{ fontSize: '20px', marginBottom: '12px' }}></i>
+                <p>Đang tải danh sách học viên...</p>
+              </div>
+            ) : filteredStudents.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+                <i className="fas fa-users" style={{ fontSize: '32px', marginBottom: '12px', opacity: 0.5 }}></i>
+                <p>Không tìm thấy học viên nào</p>
+              </div>
+            ) : (
+              filteredStudents.map(student => {
+                const isSelected = selectedStudents.some(s => s.hocVienID === student.hocVienID);
+                return (
+                  <div
+                    key={student.hocVienID}
+                    style={{
+                      padding: '12px 16px',
+                      borderBottom: '1px solid #e5e7eb',
+                      cursor: 'pointer',
+                      backgroundColor: isSelected ? '#dbeafe' : 'white',
+                      transition: 'background-color 0.2s ease'
+                    }}
+                    onClick={() => handleToggleStudent(student)}
+                    onMouseEnter={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.backgroundColor = '#f9fafb';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isSelected) {
+                        e.currentTarget.style.backgroundColor = 'white';
+                      }
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      {/* Checkbox */}
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => handleToggleStudent(student)}
+                        style={{
+                          width: '18px',
+                          height: '18px',
+                          cursor: 'pointer',
+                          accentColor: '#059669'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+
+                      {/* Thông tin học viên */}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '600', color: '#1f2937', marginBottom: '4px' }}>
+                          {student.hoTen}
+                        </div>
+                        <div style={{ fontSize: '13px', color: '#6b7280' }}>
+                          {student.email && `Email: ${student.email}`}
+                          {student.sdt && ` • SĐT: ${student.sdt}`}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '4px' }}>
+                          Tài khoản ví: {student.taiKhoanVi.toLocaleString('vi-VN')} VND
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Học viên được chọn */}
+          {selectedStudents.length > 0 && (
+            <div style={{
+              marginTop: '20px',
+              padding: '16px',
+              background: '#f0f9ff',
+              border: '1px solid #bae6fd',
+              borderRadius: '8px',
+              maxHeight: '150px',
+              overflow: 'auto'
+            }}>
+              <h4 style={{ margin: '0 0 12px 0', color: '#0c4a6e' }}>
+                <i className="fas fa-check-circle"></i> Học viên được chọn ({selectedStudents.length}):
+              </h4>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {selectedStudents.map(student => (
+                  <div
+                    key={student.hocVienID}
+                    style={{
+                      background: '#0ea5e9',
+                      color: 'white',
+                      padding: '4px 8px',
+                      borderRadius: '16px',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    {student.hoTen}
+                    <button
+                      onClick={() => handleToggleStudent(student)}
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.2)',
+                        border: 'none',
+                        color: 'white',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        width: '14px',
+                        height: '14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: '50%'
+                      }}
+                      title="Bỏ chọn học viên"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Nút thêm học viên */}
+          <div style={{
+            marginTop: '24px',
+            padding: '20px',
+            background: '#f9fafb',
+            borderTop: '1px solid #e5e7eb',
+            display: 'flex',
+            justifyContent: 'space-between',
+            borderRadius: '0 0 12px 12px'
+          }}>
+            <button
+              onClick={onClose}
+              style={{
+                padding: '10px 20px',
+                background: '#6b7280',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: '600'
+              }}
+              disabled={addingStudents}
+            >
+              <i className="fas fa-times"></i> Hủy
+            </button>
+
+            <button
+              onClick={handleAddStudents}
+              disabled={selectedStudents.length === 0 || addingStudents}
+              style={{
+                padding: '10px 20px',
+                background: selectedStudents.length > 0 && !addingStudents ? '#059669' : '#9ca3af',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: selectedStudents.length > 0 && !addingStudents ? 'pointer' : 'not-allowed',
+                fontSize: '14px',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              {addingStudents ? (
+                <>
+                  <i className="fas fa-spinner fa-spin"></i> Đang thêm...
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-user-plus"></i> Thêm {selectedStudents.length} học viên
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface StudentWithStats {
   dangKyID: number;
   hocVienID: number;
@@ -31,6 +432,7 @@ const AdminClassDetailsModal: React.FC<AdminClassDetailsModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [achievementFilter, setAchievementFilter] = useState<'all' | 'pass' | 'fail'>('all');
+  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
 
   // Lọc danh sách học viên theo tiêu chí đạt
   const filteredStudents = useMemo(() => {
@@ -331,8 +733,8 @@ const AdminClassDetailsModal: React.FC<AdminClassDetailsModalProps> = ({
                     <i className="fas fa-users"></i> Danh sách học viên ({filteredStudents.length} học viên)
                   </h3>
 
-                  {/* Bộ lọc theo tiêu chí đạt */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {/* Bộ lọc theo tiêu chí đạt và nút thêm học viên */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <label style={{ fontSize: '14px', fontWeight: '500', color: '#374151' }}>
                       <i className="fas fa-filter"></i> Lọc theo trạng thái:
                     </label>
@@ -354,6 +756,60 @@ const AdminClassDetailsModal: React.FC<AdminClassDetailsModalProps> = ({
                       <option value="pass">Đã đạt yêu cầu</option>
                       <option value="fail">Chưa đạt yêu cầu</option>
                     </select>
+
+                    {/* Chỉ hiển thị nút thêm học viên cho lớp chưa bắt đầu */}
+                    {lopHoc.trangThai === "ChuaBatDau" && (
+                      <button
+                        onClick={() => setShowAddStudentModal(true)}
+                        style={{
+                          background: '#dc2626',
+                          border: '1px solid #b91c1c',
+                          color: 'white',
+                          fontSize: '14px',
+                          cursor: 'pointer',
+                          padding: '8px 16px',
+                          borderRadius: '6px',
+                          fontWeight: '600',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#b91c1c';
+                          e.currentTarget.style.borderColor = '#991b1b';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = '#dc2626';
+                          e.currentTarget.style.borderColor = '#b91c1c';
+                        }}
+                        title="Thêm học viên vào lớp"
+                      >
+                        <i className="fas fa-user-plus"></i> Thêm học viên
+                      </button>
+                    )}
+
+                    {/* Thông báo cho lớp không thể thêm học viên */}
+                    {(lopHoc.trangThai === "DangDienRa" || lopHoc.trangThai === "DaKetThuc") && (
+                      <div style={{
+                        background: '#fef3c7',
+                        border: '1px solid #f59e0b',
+                        color: '#d97706',
+                        padding: '8px 16px',
+                        borderRadius: '6px',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        <i className="fas fa-info-circle"></i>
+                        {lopHoc.trangThai === "DangDienRa"
+                          ? "Không thể thêm học viên vào lớp đang diễn ra"
+                          : "Không thể thêm học viên vào lớp đã kết thúc"
+                        }
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -508,6 +964,19 @@ const AdminClassDetailsModal: React.FC<AdminClassDetailsModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Modal thêm học viên */}
+      {lopHoc && (
+        <AdminAddStudentModal
+          lopHoc={lopHoc}
+          isOpen={showAddStudentModal}
+          onClose={() => setShowAddStudentModal(false)}
+          onStudentAdded={() => {
+            loadClassDetails(); // Refresh danh sách học viên
+            setShowAddStudentModal(false);
+          }}
+        />
+      )}
     </div>
   );
 };

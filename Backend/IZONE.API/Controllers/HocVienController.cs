@@ -136,6 +136,72 @@ namespace IZONE.API.Controllers
             }
         }
 
+        /// <summary>
+        /// Tạo học viên kèm tài khoản (cho admin)
+        /// </summary>
+        [HttpPost("with-account")]
+        public async Task<IActionResult> CreateWithAccount([FromBody] CreateHocVienWithAccountRequest request)
+        {
+            return await _context.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+            {
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
+                {
+                    // Kiểm tra email đã tồn tại chưa
+                    var existingTaiKhoan = await _context.TaiKhoans.FirstOrDefaultAsync(t => t.Email == request.Email);
+                    if (existingTaiKhoan != null)
+                    {
+                        return BadRequest($"Email {request.Email} đã tồn tại trong hệ thống");
+                    }
+
+                    // Tạo tài khoản mới
+                    var taiKhoan = new TaiKhoan
+                    {
+                        Email = request.Email,
+                        MatKhau = request.MatKhau, // Nên hash mật khẩu trong thực tế
+                        VaiTro = "HocVien"
+                    };
+
+                    await _context.TaiKhoans.AddAsync(taiKhoan);
+                    await _context.SaveChangesAsync();
+
+                    // Tạo học viên với TaiKhoanID
+                    var hocVien = new HocVien
+                    {
+                        TaiKhoanID = taiKhoan.TaiKhoanID,
+                        HoTen = request.HoTen,
+                        NgaySinh = string.IsNullOrEmpty(request.NgaySinh) ? null : DateTime.Parse(request.NgaySinh),
+                        Email = request.Email,
+                        SDT = request.SDT,
+                        TaiKhoanVi = 0 // Mặc định 0
+                    };
+
+                    await _hocVienRepository.AddAsync(hocVien);
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    var result = new
+                    {
+                        hocVienID = hocVien.HocVienID,
+                        hoTen = hocVien.HoTen,
+                        email = hocVien.Email,
+                        SDT = hocVien.SDT,
+                        taiKhoanID = hocVien.TaiKhoanID,
+                        taiKhoanVi = hocVien.TaiKhoanVi,
+                        message = "Học viên và tài khoản đã được tạo thành công"
+                    };
+
+                    return CreatedAtAction(nameof(GetHocVienById), new { id = hocVien.HocVienID }, result);
+                }
+                catch (Exception ex)
+                {
+                    await transaction.RollbackAsync();
+                    _logger.LogError(ex, "Lỗi khi tạo học viên kèm tài khoản");
+                    return StatusCode(500, new { message = "Lỗi khi tạo học viên kèm tài khoản", error = ex.Message });
+                }
+            });
+        }
+
         [HttpPut("{id}")]
         public async Task<ActionResult> UpdateHocVien(int id, [FromBody] HocVien hocVien)
         {
@@ -318,4 +384,14 @@ namespace IZONE.API.Controllers
             });
         }
     }
+}
+
+// DTOs cho các request
+public class CreateHocVienWithAccountRequest
+{
+    public string Email { get; set; } = string.Empty;
+    public string MatKhau { get; set; } = string.Empty;
+    public string HoTen { get; set; } = string.Empty;
+    public string? NgaySinh { get; set; }
+    public string? SDT { get; set; }
 }

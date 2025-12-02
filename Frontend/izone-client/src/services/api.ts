@@ -618,6 +618,12 @@ export const dangKyLopService = {
     const response = await apiClient.post<any>('/DangKyLop/change-class', request);
     return response.data;
   },
+
+  // Admin register student for class with cash payment
+  adminRegisterStudent: async (request: { hocVienID: number; lopID: number }): Promise<any> => {
+    const response = await apiClient.post<any>('/DangKyLop/admin-register-student', request);
+    return response.data;
+  },
 };
 
 export interface ThongBao {
@@ -1295,6 +1301,18 @@ export const hocVienService = {
     return response.data;
   },
 
+  // Create student with account
+  createWithAccount: async (taiKhoanData: { email: string; matKhau: string; vaiTro: string }, hocVienData: { hoTen: string; ngaySinh?: string; sdt?: string }): Promise<HocVienWithEmailDto> => {
+    const response = await apiClient.post<HocVienWithEmailDto>('/HocVien/with-account', {
+      email: taiKhoanData.email,
+      matKhau: taiKhoanData.matKhau,
+      hoTen: hocVienData.hoTen,
+      ngaySinh: hocVienData.ngaySinh,
+      sdt: hocVienData.sdt
+    });
+    return response.data;
+  },
+
   // Update student
   update: async (id: number, hocVien: HocVien): Promise<void> => {
     await apiClient.put(`/HocVien/${id}`, hocVien);
@@ -1305,6 +1323,17 @@ export const hocVienService = {
     await apiClient.delete(`/HocVien/${id}`);
   },
 };
+
+// DTO để tránh vòng lặp serialization cho học viên
+export interface HocVienWithEmailDto {
+  hocVienID: number;
+  taiKhoanID?: number | null;
+  hoTen: string;
+  ngaySinh: string | null;
+  email: string | null;
+  sdt: string | null;
+  taiKhoanVi: number;
+}
 
 // ChiPhi Service
 export const chiPhiService = {

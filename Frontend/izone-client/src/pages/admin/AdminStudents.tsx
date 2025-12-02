@@ -34,6 +34,16 @@ const AdminStudents: React.FC = () => {
     totalItems: 0,
     itemsPerPage: 10
   });
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newStudent, setNewStudent] = useState({
+    // Thông tin tài khoản
+    email: '',
+    matKhau: '',
+    // Thông tin học viên
+    hoTen: '',
+    ngaySinh: '',
+    sdt: ''
+  });
 
   useEffect(() => {
     fetchStudents();
@@ -118,6 +128,66 @@ const AdminStudents: React.FC = () => {
   const handleViewStudentDetails = (student: HocVien) => {
     setSelectedStudent(student);
     setShowDetailsModal(true);
+  };
+
+  const handleAddNew = async () => {
+    // Validation
+    if (!newStudent.email.trim()) {
+      alert('Vui lòng nhập email');
+      return;
+    }
+    if (!newStudent.matKhau.trim()) {
+      alert('Vui lòng nhập mật khẩu');
+      return;
+    }
+    if (!newStudent.hoTen.trim()) {
+      alert('Vui lòng nhập họ tên');
+      return;
+    }
+
+    try {
+      // Tạo tài khoản trước
+      const taiKhoanData = {
+        email: newStudent.email,
+        matKhau: newStudent.matKhau,
+        vaiTro: 'HocVien'
+      };
+
+      // Sau đó tạo học viên với TaiKhoanID từ tài khoản vừa tạo
+      const hocVienData = {
+        hoTen: newStudent.hoTen,
+        ngaySinh: newStudent.ngaySinh,
+        sdt: newStudent.sdt
+      };
+
+      // Gọi API tạo học viên (bao gồm tạo tài khoản)
+      const createdStudent = await hocVienService.createWithAccount(taiKhoanData, hocVienData);
+      setStudents([...students, createdStudent]);
+
+      // Reset form
+      setNewStudent({
+        email: '',
+        matKhau: '',
+        hoTen: '',
+        ngaySinh: '',
+        sdt: ''
+      });
+      setShowAddForm(false);
+    } catch (error) {
+      console.error('Error creating student:', error);
+      setError('Có lỗi xảy ra khi tạo học viên mới');
+    }
+  };
+
+  const handleCancelAdd = () => {
+    setShowAddForm(false);
+    setNewStudent({
+      email: '',
+      matKhau: '',
+      hoTen: '',
+      ngaySinh: '',
+      sdt: ''
+    });
   };
 
 
@@ -276,22 +346,202 @@ const AdminStudents: React.FC = () => {
     <div className="management-container">
       <div className="management-header">
         <h2>Quản lý Học viên</h2>
-        <div className="search-container">
-          <input
-            type="text"
-            placeholder="Tìm kiếm theo tên, email, số điện thoại hoặc mã học viên..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              padding: '8px 12px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              width: '350px'
-            }}
-          />
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {!showAddForm && (
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="btn btn-primary"
+              style={{
+                padding: '8px 16px',
+                background: 'white',
+                color: '#dc2626',
+                border: '2px solid #dc2626',
+                borderRadius: '15px',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '14px',
+                boxShadow: '0 4px 15px rgba(220, 38, 38, 0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                justifyContent: 'center',
+                whiteSpace: 'nowrap',
+                minWidth: '120px',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)';
+                e.currentTarget.style.color = 'white';
+                e.currentTarget.style.transform = 'translateY(-2px) scale(1.02)';
+                e.currentTarget.style.boxShadow = '0 8px 25px rgba(220, 38, 38, 0.3)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = 'white';
+                e.currentTarget.style.color = '#dc2626';
+                e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                e.currentTarget.style.boxShadow = '0 4px 15px rgba(220, 38, 38, 0.2)';
+              }}
+            >
+              <i className="fas fa-plus"></i>
+              <span>Thêm học viên mới</span>
+            </button>
+          )}
+          <div className="search-container">
+            <input
+              type="text"
+              placeholder="Tìm kiếm theo tên, email, số điện thoại hoặc mã học viên..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                width: '350px'
+              }}
+            />
+          </div>
         </div>
       </div>
-      
+
+      {showAddForm && (
+        <div style={{
+          backgroundColor: '#f8f9fa',
+          padding: '20px',
+          marginBottom: '20px',
+          borderRadius: '8px',
+          border: '1px solid #dee2e6'
+        }}>
+          <h3>Thêm học viên mới</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px', marginTop: '15px' }}>
+            {/* Thông tin tài khoản */}
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                Email: <span style={{ color: 'red' }}>*</span>
+              </label>
+              <input
+                type="email"
+                value={newStudent.email}
+                onChange={(e) => setNewStudent({...newStudent, email: e.target.value})}
+                placeholder="Nhập email"
+                autoComplete="off"
+                data-form-type="new-student"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px'
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                Mật khẩu: <span style={{ color: 'red' }}>*</span>
+              </label>
+              <input
+                type="password"
+                value={newStudent.matKhau}
+                onChange={(e) => setNewStudent({...newStudent, matKhau: e.target.value})}
+                placeholder="Nhập mật khẩu"
+                autoComplete="new-password"
+                data-form-type="new-student"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px'
+                }}
+              />
+            </div>
+            {/* Thông tin học viên */}
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                Họ tên: <span style={{ color: 'red' }}>*</span>
+              </label>
+              <input
+                type="text"
+                value={newStudent.hoTen}
+                onChange={(e) => setNewStudent({...newStudent, hoTen: e.target.value})}
+                placeholder="Nhập họ tên"
+                autoComplete="off"
+                data-form-type="new-student"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px'
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                Ngày sinh:
+              </label>
+              <input
+                type="date"
+                value={newStudent.ngaySinh}
+                onChange={(e) => setNewStudent({...newStudent, ngaySinh: e.target.value})}
+                autoComplete="off"
+                data-form-type="new-student"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px'
+                }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                Số điện thoại:
+              </label>
+              <input
+                type="tel"
+                value={newStudent.sdt}
+                onChange={(e) => setNewStudent({...newStudent, sdt: e.target.value})}
+                placeholder="Nhập số điện thoại"
+                autoComplete="off"
+                data-form-type="new-student"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px'
+                }}
+              />
+            </div>
+          </div>
+          <div style={{ marginTop: '15px', textAlign: 'right' }}>
+            <button
+              onClick={handleCancelAdd}
+              style={{
+                padding: '8px 16px',
+                marginRight: '10px',
+                backgroundColor: '#6c757d',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handleAddNew}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Thêm mới
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="table-container">
         <table className="management-table">
           <thead>
