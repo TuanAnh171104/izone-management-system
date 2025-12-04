@@ -91,14 +91,41 @@ const AdminDashboard: React.FC = () => {
         const totalRevenue = filteredPaymentsSuccess.reduce((s, p: any) => s + (p.soTien || 0), 0);
         const totalCost = filteredCosts.reduce((s, c: any) => s + (c.soTien || 0), 0);
 
-        const active = classes.filter((c: any) => (c.trangThai || '').toLowerCase() === 'dangdienra').length;
-        const completed = classes.filter((c: any) => (c.trangThai || '').toLowerCase() === 'daketthuc').length;
-        const completionRate = classes.length > 0 ? completed / classes.length : 0;
+        // Lớp đang diễn ra theo bộ lọc thời gian: NgayBatDau <= dateRange.end && NgayKetThuc >= dateRange.start
+        const activeClassesFiltered = classes.filter((c: any) => {
+          const startDate = new Date(c.ngayBatDau);
+          const endDate = c.ngayKetThuc ? new Date(c.ngayKetThuc) : null;
+          return startDate <= dateRange.end && (!endDate || endDate >= dateRange.start);
+        });
+        const active = activeClassesFiltered.length;
 
-        const validRegStatuses = new Set(['danghoc', 'dahoanthanh']);
-        const totalRegistrations = registrations.filter((r: any) => validRegStatuses.has((r.trangThaiDangKy || '').toLowerCase())).length;
-        const totalCapacity = classes.reduce((s: number, c: any) => s + (c.soLuongToiDa || 0), 0);
-        const avgFill = totalCapacity > 0 ? totalRegistrations / totalCapacity : 0;
+        // Tỷ lệ hoàn thành: số đăng ký trạng thái hoàn thành / tổng số đăng ký của lớp đã kết thúc (ngày kết thúc < dateRange.start)
+        const completedClassesFiltered = classes.filter((c: any) => {
+          const endDate = c.ngayKetThuc ? new Date(c.ngayKetThuc) : null;
+          return endDate && endDate < dateRange.start && (c.trangThai || '').toLowerCase() === 'daketthuc';
+        });
+        const completedClassIds = new Set(completedClassesFiltered.map((c: any) => c.lopID));
+        const completedRegistrations = registrations.filter((r: any) => completedClassIds.has(r.lopID));
+        const completedStudents = completedRegistrations.filter((r: any) =>
+          (r.trangThaiDangKy || '').toLowerCase() === 'dahoanthanh'
+        ).length;
+        const totalCompletedRegistrations = completedRegistrations.length;
+        const completionRate = totalCompletedRegistrations > 0 ? completedStudents / totalCompletedRegistrations : 0;
+
+        // Tổng học viên: đếm đăng ký của các lớp đang diễn ra (theo bộ lọc thời gian)
+        const activeClassIds = new Set(activeClassesFiltered.map((c: any) => c.lopID));
+        const totalStudentsInActiveClasses = registrations.filter((r: any) =>
+          activeClassIds.has(r.lopID) &&
+          ['danghoc', 'dahoanthanh'].includes((r.trangThaiDangKy || '').toLowerCase())
+        ).length;
+
+        // Tỷ lệ lấp đầy trung bình: chỉ tính cho các lớp đang diễn ra theo bộ lọc thời gian
+        const activeClassRegistrations = registrations.filter((r: any) =>
+          activeClassIds.has(r.lopID) &&
+          ['danghoc', 'dahoanthanh'].includes((r.trangThaiDangKy || '').toLowerCase())
+        );
+        const activeClassCapacity = activeClassesFiltered.reduce((s: number, c: any) => s + (c.soLuongToiDa || 0), 0);
+        const avgFill = activeClassCapacity > 0 ? activeClassRegistrations.length / activeClassCapacity : 0;
 
         const revByMonth: Record<string, number> = {};
         filteredPaymentsSuccess.forEach((p: any) => {
@@ -159,7 +186,7 @@ const AdminDashboard: React.FC = () => {
         setStats({
           totalAccounts: accounts.length,
           totalLecturers: lecturers.length,
-          totalStudents: students.length,
+          totalStudents: totalStudentsInActiveClasses, // Tổng học viên của các lớp đang diễn ra
           totalCourses: courses.length,
           totalClasses: classes.length,
           revenue: totalRevenue,

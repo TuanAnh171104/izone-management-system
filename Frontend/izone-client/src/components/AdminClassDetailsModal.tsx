@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { dangKyLopService, DangKyLop, hocVienService, HocVien, lopHocService, LopHoc } from '../services/api';
+import { dangKyLopService, DangKyLop, hocVienService, HocVien, lopHocService, LopHoc, khoaHocService, KhoaHoc } from '../services/api';
 import { mapLopHocStatus, mapTrangThaiDangKy, mapTrangThaiThanhToan } from '../utils/statusMapping';
 
 // Modal thêm học viên vào lớp
@@ -22,12 +22,23 @@ const AdminAddStudentModal: React.FC<AdminAddStudentModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStudents, setSelectedStudents] = useState<HocVien[]>([]);
   const [addingStudents, setAddingStudents] = useState(false);
+  const [courseInfo, setCourseInfo] = useState<KhoaHoc | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       loadAllStudents();
+      loadCourseInfo();
     }
   }, [isOpen]);
+
+  const loadCourseInfo = async () => {
+    try {
+      const course = await khoaHocService.getById(lopHoc.khoaHocID);
+      setCourseInfo(course);
+    } catch (error) {
+      console.error('Lỗi khi tải thông tin khóa học:', error);
+    }
+  };
 
   useEffect(() => {
     // Lọc học viên theo từ khóa tìm kiếm
@@ -135,7 +146,7 @@ const AdminAddStudentModal: React.FC<AdminAddStudentModalProps> = ({
       }}>
         {/* Header */}
         <div style={{
-          background: '#059669',
+          background: '#dc2626',
           color: 'white',
           padding: '20px 24px',
           display: 'flex',
@@ -180,11 +191,11 @@ const AdminAddStudentModal: React.FC<AdminAddStudentModalProps> = ({
             padding: '16px',
             marginBottom: '20px'
           }}>
-            <h4 style={{ margin: '0 0 8px 0', color: '#166534' }}>
+            <h4 style={{ margin: '0 0 8px 0', color: 'black' }}>
               <i className="fas fa-school"></i> Lớp học: ID {lopHoc.lopID}
             </h4>
-            <p style={{ margin: 0, color: '#166534', fontSize: '14px' }}>
-              Học phí: Chưa xác định VND
+            <p style={{ margin: 0, color: 'black', fontSize: '14px' }}>
+              Học phí: {courseInfo?.hocPhi?.toLocaleString('vi-VN') || 'Chưa xác định'} VND
             </p>
           </div>
 
@@ -261,7 +272,7 @@ const AdminAddStudentModal: React.FC<AdminAddStudentModalProps> = ({
                           width: '18px',
                           height: '18px',
                           cursor: 'pointer',
-                          accentColor: '#059669'
+                          accentColor: '#dc2626'
                         }}
                         onClick={(e) => e.stopPropagation()}
                       />
@@ -374,7 +385,7 @@ const AdminAddStudentModal: React.FC<AdminAddStudentModalProps> = ({
               disabled={selectedStudents.length === 0 || addingStudents}
               style={{
                 padding: '10px 20px',
-                background: selectedStudents.length > 0 && !addingStudents ? '#059669' : '#9ca3af',
+                background: selectedStudents.length > 0 && !addingStudents ? '#dc2626' : '#9ca3af',
                 color: 'white',
                 border: 'none',
                 borderRadius: '6px',
@@ -417,6 +428,265 @@ interface StudentWithStats {
   diemTrungBinh: number;
 }
 
+// Modal hủy đăng ký học viên
+interface AdminCancelRegistrationModalProps {
+  student: StudentWithStats;
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirmCancel: (dangKyID: number, lyDoHuy: string) => void;
+}
+
+const AdminCancelRegistrationModal: React.FC<AdminCancelRegistrationModalProps> = ({
+  student,
+  isOpen,
+  onClose,
+  onConfirmCancel
+}) => {
+  const [selectedReason, setSelectedReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const cancellationReasons = [
+    'Bỏ học',
+    'Học viên xin nghỉ học',
+    'Học viên không đủ điều kiện tham gia',
+    'Học viên vi phạm quy định lớp học',
+    'Học viên có vấn đề sức khỏe',
+    'Học viên thay đổi kế hoạch học tập',
+    'Lý do khác...'
+  ];
+
+  const handleConfirmCancel = async () => {
+    const finalReason = selectedReason === 'Lý do khác...' ? customReason.trim() : selectedReason;
+
+    if (!finalReason) {
+      alert('Vui lòng chọn hoặc nhập lý do hủy đăng ký');
+      return;
+    }
+
+    setIsCancelling(true);
+    try {
+      await onConfirmCancel(student.dangKyID, finalReason);
+      onClose();
+    } catch (error) {
+      console.error('Lỗi khi hủy đăng ký:', error);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const handleReasonChange = (reason: string) => {
+    setSelectedReason(reason);
+    if (reason !== 'Lý do khác...') {
+      setCustomReason('');
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1200,
+      padding: '20px'
+    }}>
+      <div style={{
+        background: 'white',
+        borderRadius: '12px',
+        width: '90%',
+        maxWidth: '500px',
+        overflow: 'hidden',
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)'
+      }}>
+        {/* Header */}
+        <div style={{
+          background: '#dc2626',
+          color: 'white',
+          padding: '20px 24px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>
+            <i className="fas fa-user-times"></i> Hủy đăng ký học viên
+          </h2>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              color: 'white',
+              fontSize: '18px',
+              cursor: 'pointer',
+              padding: '6px',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '6px'
+            }}
+          >
+            <i className="fas fa-times"></i>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div style={{ padding: '24px' }}>
+          {/* Thông tin học viên */}
+          <div style={{
+            background: '#f9fafb',
+            border: '1px solid #e5e7eb',
+            borderRadius: '8px',
+            padding: '16px',
+            marginBottom: '20px'
+          }}>
+            <h4 style={{ margin: '0 0 8px 0', color: '#374151' }}>
+              <i className="fas fa-user"></i> Học viên: {student.hoTen}
+            </h4>
+            <p style={{ margin: 0, color: '#6b7280', fontSize: '14px' }}>
+              ID đăng ký: {student.dangKyID}
+            </p>
+          </div>
+
+          {/* Lý do hủy */}
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '8px',
+              fontWeight: '600',
+              color: '#374151'
+            }}>
+              <i className="fas fa-question-circle"></i> Lý do hủy đăng ký:
+            </label>
+            <select
+              value={selectedReason}
+              onChange={(e) => handleReasonChange(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                border: '1px solid #d1d5db',
+                borderRadius: '8px',
+                fontSize: '14px',
+                background: 'white',
+                marginBottom: '12px'
+              }}
+            >
+              <option value="">-- Chọn lý do --</option>
+              {cancellationReasons.map(reason => (
+                <option key={reason} value={reason}>{reason}</option>
+              ))}
+            </select>
+
+            {selectedReason === 'Lý do khác...' && (
+              <textarea
+                value={customReason}
+                onChange={(e) => setCustomReason(e.target.value)}
+                placeholder="Nhập lý do hủy đăng ký..."
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  minHeight: '80px',
+                  resize: 'vertical'
+                }}
+              />
+            )}
+          </div>
+
+          {/* Cảnh báo */}
+          <div style={{
+            background: '#fef3c7',
+            border: '1px solid #f59e0b',
+            borderRadius: '8px',
+            padding: '16px',
+            marginBottom: '20px'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              color: '#d97706',
+              fontWeight: '600',
+              marginBottom: '8px'
+            }}>
+              <i className="fas fa-exclamation-triangle"></i>
+              Cảnh báo
+            </div>
+            <p style={{ margin: 0, color: '#d97706', fontSize: '14px' }}>
+              Hành động này sẽ hủy đăng ký của học viên khỏi lớp học. Học viên sẽ không thể tham gia các buổi học tiếp theo.
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: '20px 24px',
+          background: '#f9fafb',
+          borderTop: '1px solid #e5e7eb',
+          display: 'flex',
+          justifyContent: 'space-between'
+        }}>
+          <button
+            onClick={onClose}
+            style={{
+              padding: '10px 20px',
+              background: '#6b7280',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '600'
+            }}
+            disabled={isCancelling}
+          >
+            <i className="fas fa-times"></i> Hủy
+          </button>
+
+          <button
+            onClick={handleConfirmCancel}
+            disabled={!selectedReason || (selectedReason === 'Lý do khác...' && !customReason.trim()) || isCancelling}
+            style={{
+              padding: '10px 20px',
+              background: !selectedReason || (selectedReason === 'Lý do khác...' && !customReason.trim()) || isCancelling ? '#9ca3af' : '#dc2626',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: !selectedReason || (selectedReason === 'Lý do khác...' && !customReason.trim()) || isCancelling ? 'not-allowed' : 'pointer',
+              fontSize: '14px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            {isCancelling ? (
+              <>
+                <i className="fas fa-spinner fa-spin"></i> Đang xử lý...
+              </>
+            ) : (
+              <>
+                <i className="fas fa-user-times"></i> Xác nhận hủy
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 interface AdminClassDetailsModalProps {
   lopHoc: LopHoc | null;
   isOpen: boolean;
@@ -433,6 +703,8 @@ const AdminClassDetailsModal: React.FC<AdminClassDetailsModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [achievementFilter, setAchievementFilter] = useState<'all' | 'pass' | 'fail'>('all');
   const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+  const [showCancelRegistrationModal, setShowCancelRegistrationModal] = useState(false);
+  const [selectedStudentForCancel, setSelectedStudentForCancel] = useState<StudentWithStats | null>(null);
 
   // Lọc danh sách học viên theo tiêu chí đạt
   const filteredStudents = useMemo(() => {
@@ -547,6 +819,49 @@ const AdminClassDetailsModal: React.FC<AdminClassDetailsModalProps> = ({
       default:
         return { backgroundColor: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db' };
     }
+  };
+
+  const handleCancelRegistration = async (dangKyID: number, lyDoHuy: string) => {
+    try {
+      // Tìm thông tin đăng ký hiện tại để lấy dữ liệu đầy đủ
+      const currentStudent = students.find(s => s.dangKyID === dangKyID);
+      if (!currentStudent) {
+        throw new Error('Không tìm thấy thông tin đăng ký học viên');
+      }
+
+      // Tạo object cập nhật với dữ liệu đầy đủ
+      const updateData: DangKyLop = {
+        dangKyID: dangKyID,
+        hocVienID: currentStudent.hocVienID,
+        lopID: currentStudent.lopID,
+        ngayDangKy: currentStudent.ngayDangKy,
+        trangThaiDangKy: 'DaHuy',
+        trangThaiThanhToan: currentStudent.trangThaiThanhToan, // Giữ nguyên trạng thái thanh toán
+        ngayHuy: new Date().toISOString(),
+        lyDoHuy: lyDoHuy
+      };
+
+      await dangKyLopService.update(dangKyID, updateData);
+
+      // Refresh danh sách học viên
+      await loadClassDetails();
+
+      alert('Đã hủy đăng ký học viên thành công!');
+    } catch (error: any) {
+      console.error('Lỗi khi hủy đăng ký:', error);
+      alert(`Lỗi khi hủy đăng ký: ${error.response?.data?.message || error.message}`);
+      throw error; // Re-throw để modal xử lý
+    }
+  };
+
+  const handleOpenCancelModal = (student: StudentWithStats) => {
+    setSelectedStudentForCancel(student);
+    setShowCancelRegistrationModal(true);
+  };
+
+  const handleCloseCancelModal = () => {
+    setShowCancelRegistrationModal(false);
+    setSelectedStudentForCancel(null);
   };
 
   if (!isOpen || !lopHoc) return null;
@@ -850,7 +1165,7 @@ const AdminClassDetailsModal: React.FC<AdminClassDetailsModalProps> = ({
                         borderRadius: '8px',
                         padding: '16px',
                         display: 'grid',
-                        gridTemplateColumns: 'auto 1fr auto auto',
+                        gridTemplateColumns: 'auto 1fr auto auto auto',
                         gap: '16px',
                         alignItems: 'center'
                       }}>
@@ -930,6 +1245,59 @@ const AdminClassDetailsModal: React.FC<AdminClassDetailsModalProps> = ({
                             <div style={{ fontSize: '12px', color: '#6b7280' }}>Chuyên cần</div>
                           </div>
                         </div>
+
+                        {/* Nút hủy đăng ký */}
+                        <div style={{ textAlign: 'center' }}>
+                          {(lopHoc.trangThai === "ChuaBatDau" || lopHoc.trangThai === "DangDienRa") ? (
+                            <button
+                              onClick={() => handleOpenCancelModal(student)}
+                              disabled={student.trangThaiDangKy === 'DaHuy'}
+                              style={{
+                                padding: '6px 12px',
+                                background: student.trangThaiDangKy === 'DaHuy' ? '#9ca3af' : '#dc2626',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: student.trangThaiDangKy === 'DaHuy' ? 'not-allowed' : 'pointer',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                transition: 'all 0.2s ease'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (student.trangThaiDangKy !== 'DaHuy') {
+                                  e.currentTarget.style.background = '#b91c1c';
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (student.trangThaiDangKy !== 'DaHuy') {
+                                  e.currentTarget.style.background = '#dc2626';
+                                }
+                              }}
+                              title={student.trangThaiDangKy === 'DaHuy' ? 'Đăng ký đã bị hủy' : 'Hủy đăng ký học viên'}
+                            >
+                              <i className="fas fa-user-times"></i>
+                              {student.trangThaiDangKy === 'DaHuy' ? 'Đã hủy' : 'Hủy'}
+                            </button>
+                          ) : (
+                            <div style={{
+                              padding: '6px 12px',
+                              background: '#f3f4f6',
+                              color: '#9ca3af',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              <i className="fas fa-lock"></i>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -975,6 +1343,16 @@ const AdminClassDetailsModal: React.FC<AdminClassDetailsModalProps> = ({
             loadClassDetails(); // Refresh danh sách học viên
             setShowAddStudentModal(false);
           }}
+        />
+      )}
+
+      {/* Modal hủy đăng ký học viên */}
+      {selectedStudentForCancel && (
+        <AdminCancelRegistrationModal
+          student={selectedStudentForCancel}
+          isOpen={showCancelRegistrationModal}
+          onClose={handleCloseCancelModal}
+          onConfirmCancel={handleCancelRegistration}
         />
       )}
     </div>
